@@ -1,0 +1,10 @@
+(jbuild_version 1)
+
+(library
+ ((name        typed_ruby)
+  (public_name Typed_ruby)
+  (libraries (core))))
+
+
+(menhir
+ ((modules (Parser))))
