@@ -1,2 +1,2 @@
 true: package(core)
-true: thread,debug,annot
+true: thread,debug,annot,explain

@@ -19,28 +19,29 @@ let exp = ['e' 'E'] ['-' '+']? digit+
 let float = digit* frac? exp?
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
-let id = ['@' '$']* ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']* ['=']?
+let id = ['@']* ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let const = ['A'-'Z'] ['a'-'z' 'A'-'Z' '_']*
 
-rule read =
-  parse
+rule read = parse
   | white    { read lexbuf }
-  | newline  { next_line lexbuf; read lexbuf }
+  | newline  { next_line lexbuf; EOL }
   | int      { INT (int_of_string (Lexing.lexeme lexbuf)) }
   | float    { FLOAT (float_of_string (Lexing.lexeme lexbuf)) }
   | "true"   { TRUE }
   | "false"  { FALSE }
-  | "null"   { NULL }
+  | "nil"    { NIL }
   | const    { CONST (Lexing.lexeme lexbuf) }
   | id       { ID (Lexing.lexeme lexbuf) }
   | '"'      { read_string (Buffer.create 17) lexbuf }
-  | '{'      { LEFT_BRACE }
-  | '}'      { RIGHT_BRACE }
-  | '['      { LEFT_BRACK }
-  | ']'      { RIGHT_BRACK }
+  | '{'      { LBRACE }
+  | '}'      { RBRACE }
+  | '['      { LBRACK }
+  | ']'      { RBRACK }
   | ':'      { COLON }
   | ','      { COMMA }
   | '='      { EQ }
+  | '('      { LPAREN }
+  | ')'      { RPAREN }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof      { EOF }
 
