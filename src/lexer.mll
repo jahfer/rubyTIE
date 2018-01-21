@@ -30,8 +30,9 @@ rule read = parse
   | "true"   { TRUE }
   | "false"  { FALSE }
   | "nil"    { NIL }
+  | "def"    { DEF }
+  | "end"    { END }
   | const    { CONST (Lexing.lexeme lexbuf) }
-  | id       { ID (Lexing.lexeme lexbuf) }
   | '"'      { read_string (Buffer.create 17) lexbuf }
   | '{'      { LBRACE }
   | '}'      { RBRACE }
@@ -42,6 +43,7 @@ rule read = parse
   | '='      { EQ }
   | '('      { LPAREN }
   | ')'      { RPAREN }
+  | id       { ID (Lexing.lexeme lexbuf) }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof      { EOF }
 

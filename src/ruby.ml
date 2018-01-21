@@ -1,14 +1,15 @@
-type value = [
+type id = string * value
+and value = [
   | `Hash of (value * value) list
   | `Bool of bool
   | `Float of float
   | `Int of int
-  | `List of value list
+  | `Array of value list
   | `Nil
   | `String of string
-  | `Id of (string * value)
-  | `Const of (string * value)
-  | `Func of (value * value list)
+  | `Id of id
+  | `Const of id
+  | `Func of (id * value list)
   | `Any
 ]
 
@@ -16,8 +17,8 @@ open Core
 
 let rec output_value outc v =
   match v with
-  | `Hash obj     -> printf "{?}" (* print_hash outc obj *)
-  | `List l       -> print_list outc l
+  | `Hash obj     -> print_hash outc obj
+  | `Array l      -> printf "[%a]" print_list l
   | `Id (i, t)    -> printf "%s = %a" i output_value t
   | `Const (i, t) -> printf "%s = %a" i output_value t
   | `String s     -> printf "\"%s\"" s
@@ -27,29 +28,31 @@ let rec output_value outc v =
   | `Bool false   -> Out_channel.output_string outc "false"
   | `Nil          -> Out_channel.output_string outc "nil"
   | `Any          -> printf "?"
-  | `Func (id, args) -> printf "func %a" output_value id; print_list outc args
+  | `Func ((id, t), a) -> let args = `Array(a) in
+    printf "fun %s(%a) -> %a" id output_value args output_value t
 
-(* and print_hash outc obj =
+and print_hash outc obj =
   Out_channel.output_string outc "{ ";
   let sep = ref "" in
   List.iter ~f:(fun (key, value) ->
-      printf "%s\"%a\": %a" !sep key (output_value value);
+      printf "%s%a: %a" !sep output_value key output_value value;
       sep := ",\n  ") obj;
-  Out_channel.output_string outc " }" *)
+  Out_channel.output_string outc " }"
 
 and print_list outc arr =
-  Out_channel.output_string outc "[";
   List.iteri ~f:(fun i v ->
       if i > 0 then
         Out_channel.output_string outc ", ";
-      output_value outc v) arr;
-Out_channel.output_string outc "]"
+      output_value outc v) arr
+
+let typeof outc = function
+  | _ -> Out_channel.output_string outc "Any"
 
 let counter = ref 96
 let rec output_sig outc v =
   match v with
   | `Hash obj     -> printf "hash" (* print_hash outc obj *)
-  | `List l       -> print_list outc l
+  | `Array l      -> printf "array<%a>" typeof l
   | `Id (i, t)    -> printf "val %s : %a" i output_sig t
   | `Const (i, t) -> printf "const %s : %a" i output_sig t
   | `String s     -> printf "string"
@@ -59,4 +62,10 @@ let rec output_sig outc v =
   | `Bool false   -> Out_channel.output_string outc "false"
   | `Nil          -> Out_channel.output_string outc "nil"
   | `Any          -> counter := !counter + 1; printf "'%c" (char_of_int !counter)
-  | `Func (id, args) -> printf "func %a" output_sig id; print_list outc args
+  | `Func ((id, t), a) -> printf "fun %s : (%a) -> %a" id print_args a output_sig t
+
+and print_args outc arr =
+  List.iteri ~f:(fun i v ->
+      if i > 0 then
+        Out_channel.output_string outc ", ";
+      output_sig outc v) arr

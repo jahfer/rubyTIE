@@ -17,25 +17,31 @@
 %token <string> CONST
 %token EQ
 %token EOL
+%token DEF
+%token END
 
 %start <Ruby.value option> prog
 %%
 
 prog:
-  | v = value { Some v }
-  | EOF       { None   } ;
+  | v = value EOL { Some v }
+  | EOF           { None   } ;
+
+params:
+  | LPAREN vl = list_fields RPAREN { vl } ;
 
 value:
   | LBRACE obj = obj_fields RBRACE { `Hash obj        }
-  | LBRACK vl = list_fields RBRACK { `List vl         }
+  | LBRACK vl = list_fields RBRACK { `Array vl        }
   | s = STRING                     { `String s        }
   | i = INT                        { `Int i           }
   | x = FLOAT                      { `Float x         }
   | TRUE                           { `Bool true       }
   | FALSE                          { `Bool false      }
-  | id = ID EOL                    { `Id (id, `Any)   }
-  | id = ID EQ v = value EOL       { `Id (id, v)      }
-  | c = CONST EQ v = value EOL     { `Const (c, v)    }
+  | DEF fn = ID p = params END     { `Func((fn, `Any), p) }
+  | id = ID                        { `Id (id, `Any)   }
+  | id = ID EQ v = value           { `Id (id, v)      }
+  | c = CONST EQ v = value         { `Const (c, v)    }
   | c = CONST                      { `Const (c, `Any) }
   | NIL                            { `Nil            } ;
 
