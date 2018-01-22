@@ -38,11 +38,11 @@ value:
   | x = FLOAT                      { `Float x         }
   | TRUE                           { `Bool true       }
   | FALSE                          { `Bool false      }
-  | DEF fn = ID p = params END     { `Func((fn, `Any), p) }
-  | id = ID                        { `Id (id, `Any)   }
-  | id = ID EQ v = value           { `Id (id, v)      }
-  | c = CONST EQ v = value         { `Const (c, v)    }
-  | c = CONST                      { `Const (c, `Any) }
+  | DEF fn = ID p = params END     { `Func ((fn, `TAny), p) }
+  | id = ID                        { `Id ((id, `TAny), `None)        }
+  | id = ID EQ v = value           { `Id ((id, `TAny), v) }
+  | c = CONST EQ v = value         { `Const ((c, `TAny), v) }
+  | c = CONST                      { `Const ((c, `TAny), `None) }
   | NIL                            { `Nil            } ;
 
 obj_fields:
