@@ -3,10 +3,10 @@ type t = [
   | `TBool
   | `TFloat
   | `TInt
-  | `TArray
+  | `TArray of t
   | `TNil
   | `TString
-  | `TConst
+  | `TConst of t
   | `TFunc
   | `TAny
 ]
@@ -20,20 +20,48 @@ and value = [
   | `Array of value list
   | `Nil
   | `String of string
-  | `Id of id * value
-  | `Const of id * value
-  | `Func of (id * value list)
+  | `Id of string * value
+  | `Const of string * value
+  | `Func of string * value list
   | `None
 ]
 
 open Core
 
+let rec rb_typeof = function
+  | `Hash v -> `THash
+  | `Bool b -> `TBool
+  | `Float f -> `TFloat
+  | `Int i -> `TInt
+  | `Array a -> `TArray (`TAny)
+  | `Nil -> `TNil
+  | `String s -> `TString
+  | `Id (id, v) -> `TId
+  | `Const (id, v) -> `TConst (rb_typeof v)
+  | `Func (id, args) -> `TFunc
+  | `None -> `TAny
+
+let print_type outc value =
+  let rec str_type = function
+  | `THash -> "Hash"
+  | `TBool -> "Boolean"
+  | `TFloat -> "Float"
+  | `TInt -> "Integer"
+  | `TArray t -> sprintf "Array<%s>" (str_type t)
+  | `TNil -> "Nil"
+  | `TString -> "String"
+  | `TConst t -> sprintf "Constant<%s>" (str_type t)
+  | `TFunc -> "Function"
+  | `TAny -> "Any"
+  | _ -> "?"
+  in Out_channel.output_string outc (str_type value)
+
 let rec output_value outc v =
   match v with
   | `Hash obj     -> print_hash outc obj
   | `Array l      -> printf "[%a]" print_list l
-  | `Id ((i, _t), v)    -> printf "%s = %a" i output_value v
-  | `Const ((i, _t), v) -> printf "%s = %a" i output_value v
+  | `Id (id, v)    -> printf "%s = %a" id output_value v
+  | `Const (id, v) -> printf "%s = %a" id output_value v
   | `String s     -> printf "\"%s\"" s
   | `Int i        -> printf "%d" i
   | `Float x      -> printf "%f" x
@@ -41,8 +69,8 @@ let rec output_value outc v =
   | `Bool false   -> Out_channel.output_string outc "false"
   | `Nil          -> Out_channel.output_string outc "nil"
   | `None         -> printf "?"
-  | `Func ((id, t), a) -> let args = `Array(a) in
-    printf "fun %s(%a) -> %a" id output_value args output_value t
+  | `Func (id, a) -> let args = `Array(a) in
+    printf "fun %s(%a) -> %a" id output_value args print_type `TAny
 
 and print_hash outc obj =
   Out_channel.output_string outc "{ ";
@@ -58,17 +86,13 @@ and print_list outc arr =
         Out_channel.output_string outc ", ";
       output_value outc v) arr
 
-let print_type outc = function
-  | `TAny -> Out_channel.output_string outc "Any"
-  | _ -> Out_channel.output_string outc "?"
-
 let counter = ref 96
 let rec output_sig outc v =
   match v with
   | `Hash obj     -> printf "hash" (* print_hash outc obj *)
   | `Array l      -> printf "array<%a>" print_type `TAny
-  | `Id ((i, t), _v) -> printf "val %s : %a" i print_type t
-  | `Const ((i, t), _v) -> printf "const %s : %a" i  print_type t
+  | `Id (id, v)   -> printf "val %s : %a" id print_type (rb_typeof v)
+  | `Const (id, v) as c -> printf "const %s : %a" id print_type (rb_typeof c)
   | `String s     -> printf "string"
   | `Int i        -> printf "int"
   | `Float x      -> printf "float"
@@ -76,7 +100,7 @@ let rec output_sig outc v =
   | `Bool false   -> Out_channel.output_string outc "false"
   | `Nil          -> Out_channel.output_string outc "nil"
   | `None         -> counter := !counter + 1; printf "'%c" (char_of_int !counter)
-  | `Func ((id, t), a) -> printf "fun %s : (%a) -> %a" id print_args a print_type t
+  | `Func (id, a) -> printf "fun %s : (%a) -> %a" id print_args a print_type `TAny
 
 and print_args outc arr =
   List.iteri ~f:(fun i v ->

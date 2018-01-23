@@ -31,19 +31,19 @@ params:
   | LPAREN vl = list_fields RPAREN { vl } ;
 
 value:
-  | LBRACE obj = obj_fields RBRACE { `Hash obj        }
-  | LBRACK vl = list_fields RBRACK { `Array vl        }
-  | s = STRING                     { `String s        }
-  | i = INT                        { `Int i           }
-  | x = FLOAT                      { `Float x         }
-  | TRUE                           { `Bool true       }
-  | FALSE                          { `Bool false      }
-  | DEF fn = ID p = params END     { `Func ((fn, `TAny), p) }
-  | id = ID                        { `Id ((id, `TAny), `None)        }
-  | id = ID EQ v = value           { `Id ((id, `TAny), v) }
-  | c = CONST EQ v = value         { `Const ((c, `TAny), v) }
-  | c = CONST                      { `Const ((c, `TAny), `None) }
-  | NIL                            { `Nil            } ;
+  | LBRACE obj = obj_fields RBRACE { `Hash obj         }
+  | LBRACK vl = list_fields RBRACK { `Array vl         }
+  | s = STRING                     { `String s         }
+  | i = INT                        { `Int i            }
+  | x = FLOAT                      { `Float x          }
+  | TRUE                           { `Bool true        }
+  | FALSE                          { `Bool false       }
+  | DEF fn = ID p = params END     { `Func (fn, p)     }
+  | id = ID                        { `Id (id, `None)   }
+  | id = ID EQ v = value           { `Id (id, v)       }
+  | c = CONST EQ v = value         { `Const (c, v)     }
+  | c = CONST                      { `Const (c, `None) }
+  | NIL                            { `Nil              } ;
 
 obj_fields:
     obj = separated_list(COMMA, obj_field)    { obj } ;
