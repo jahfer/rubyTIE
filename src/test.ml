@@ -20,7 +20,7 @@ let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
     printf "(* %a *)\n" Ruby.output_sig value;
-    printf "%a\n" Ruby.output_value value;
+    printf "%a\n\n" Ruby.output_value value;
     parse_and_print lexbuf
   | None -> ()
 
