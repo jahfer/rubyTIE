@@ -32,8 +32,11 @@ prog:
   | EOF         { None   }
   ;
 
+ref_value:
+  id = ID { id, None, gen_polymorphic_type } ;
+
 id:
-  | id = ID                        { id, None, gen_polymorphic_type }
+  | ref = ref_value                { ref }
   | id = ID EQ v = value           { id, v, rb_typeof v }
   | c = CONST                      { c, None, TConst gen_polymorphic_type }
   | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
@@ -53,8 +56,7 @@ value:
   ;
 
 params:
-  LPAREN vl = list_fields RPAREN { vl } ;
-
+  LPAREN p = separated_list(COMMA, ref_value) RPAREN { p } ;
 
 obj_fields:
   obj = separated_list(COMMA, obj_field)    { obj } ;

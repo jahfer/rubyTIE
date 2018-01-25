@@ -19,7 +19,7 @@ and value =
   | Array of value list
   | Nil
   | String of string
-  | Func of value list
+  | Func of id list
   | None
 
 and id = string * value * t
@@ -67,8 +67,7 @@ let rec output_value outc = function
   | Bool false   -> Out_channel.output_string outc "false"
   | Nil          -> Out_channel.output_string outc "nil"
   | None         -> printf "?"
-  | Func a -> let args = Array(a) in
-    printf "fun (%a) { ... }" output_value args
+  | Func args    -> printf "fun (%a) { ... }" print_args args
 
 and print_hash outc obj =
   Out_channel.output_string outc "{ ";
@@ -85,10 +84,10 @@ and print_list outc arr =
       output_value outc v) arr
 
 and print_args outc arr =
-  List.iteri ~f:(fun i v ->
+  List.iteri ~f:(fun i id ->
       if i > 0 then
         Out_channel.output_string outc ", ";
-      output_sig outc v) arr
+      print_signature outc id) arr
 
-let rec print_signature outc (id, value, typ) = match typ with
+and print_signature outc (id, value, typ) = match typ with
   | _ -> printf "val %s : %a = %a" id output_sig typ output_value value
