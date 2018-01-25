@@ -9,6 +9,7 @@ type t =
   | TConst of t
   | TFunc of t
   | TAny
+  | TPoly of string
 
 and value =
   | Hash of (value * value) list
@@ -23,10 +24,11 @@ and value =
 
 and id = string * value * t
 
-let gen_id_name = let counter = ref 96 in
-  counter := !counter + 1; String.make 1 (char_of_int !counter)
-
 open Core
+
+let counter = ref 96
+let gen_polymorphic_type =
+  counter := !counter + 1; TPoly(sprintf "'%c" (char_of_int !counter))
 
 let id_type (_, _, t) = t
 let id_value (_, v, _) = v
@@ -36,27 +38,26 @@ let rec rb_typeof = function
   | Bool _ -> TBool
   | Float _ -> TFloat
   | Int _ -> TInt
-  | Array _ -> TArray (TAny)
+  | Array _ -> TArray (gen_polymorphic_type)
   | Nil -> TNil
   | String _ -> TString
-  | Func _ -> TFunc (TAny)
+  | Func _ -> TFunc (gen_polymorphic_type)
   | None -> TAny
 
-let counter = ref 96
 let rec output_sig outc = function
   | THash    -> printf "hash" (* print_hash outc obj *)
-  | TArray l -> printf "array<%a>" output_sig TAny
+  | TArray l -> printf "array<%a>" output_sig gen_polymorphic_type
   | TString  -> printf "string"
   | TInt     -> printf "int"
   | TFloat   -> printf "float"
   | TConst t -> printf "const<%a>" output_sig t
   | TBool    -> Out_channel.output_string outc "bool"
   | TNil     -> Out_channel.output_string outc "nil"
-  | TAny     -> counter := !counter + 1; printf "'%c" (char_of_int !counter)
-  | TFunc a  -> printf "fun : ?"
+  | TAny     -> printf "any"
+  | TFunc a  -> printf "fun -> %a" output_sig gen_polymorphic_type
+  | TPoly t  -> printf "%s" t
 
-let rec output_value outc value =
-  match value with
+let rec output_value outc = function
   | Hash obj     -> print_hash outc obj
   | Array l      -> printf "[%a]" print_list l
   | String s     -> printf "\"%s\"" s
@@ -67,7 +68,7 @@ let rec output_value outc value =
   | Nil          -> Out_channel.output_string outc "nil"
   | None         -> printf "?"
   | Func a -> let args = Array(a) in
-    printf "fun (%a) -> %a" output_value args output_sig TAny
+    printf "fun (%a) { ... }" output_value args
 
 and print_hash outc obj =
   Out_channel.output_string outc "{ ";
@@ -88,3 +89,6 @@ and print_args outc arr =
       if i > 0 then
         Out_channel.output_string outc ", ";
       output_sig outc v) arr
+
+let rec print_signature outc (id, value, typ) = match typ with
+  | _ -> printf "val %s : %a = %a" id output_sig typ output_value value

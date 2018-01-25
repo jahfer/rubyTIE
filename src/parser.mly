@@ -33,16 +33,12 @@ prog:
   ;
 
 id:
-  | DEF fn = ID p = params END     { gen_id_name, Func p, TFunc (TAny) }
-  | id = ID                        { id, None, TAny }
+  | id = ID                        { id, None, gen_polymorphic_type }
   | id = ID EQ v = value           { id, v, rb_typeof v }
+  | c = CONST                      { c, None, TConst gen_polymorphic_type }
   | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
-  | c = CONST                      { c, None, TConst (TAny) }
-  | v = value                      { gen_id_name, v, rb_typeof v }
-  ;
-
-params:
-  | LPAREN vl = list_fields RPAREN { vl }
+  | DEF fn = ID p = params END     { fn, Func p, TFunc gen_polymorphic_type }
+  | v = value                      { "ORPHAN", v, rb_typeof v }
   ;
 
 value:
@@ -56,11 +52,15 @@ value:
   | NIL                            { Nil }
   ;
 
+params:
+  LPAREN vl = list_fields RPAREN { vl } ;
+
+
 obj_fields:
-    obj = separated_list(COMMA, obj_field)    { obj } ;
+  obj = separated_list(COMMA, obj_field)    { obj } ;
 
 obj_field:
-    k = value COLON v = value                 { k, v } ;
+  k = value COLON v = value                 { k, v } ;
 
 list_fields:
-    vl = separated_list(COMMA, value)         { vl } ;
+  vl = separated_list(COMMA, value)         { vl } ;

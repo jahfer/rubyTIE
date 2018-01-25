@@ -18,9 +18,8 @@ let parse_with_error lexbuf =
 
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
-  | Some (_id, value, t) ->
-    printf "%a " Ruby.output_value value;
-    printf "(* %a *)\n" Ruby.output_sig t;
+  | Some ((_id, value, t) as id) ->
+    printf "%a\n" Ruby.print_signature id;
     parse_and_print lexbuf
   | None -> ()
 
