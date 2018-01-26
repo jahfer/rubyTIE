@@ -20,36 +20,49 @@
 %token DEF
 %token END
 
-%start <Ruby.value option> prog
+%{
+  open Ruby
+%}
+
+%start <Ruby.id option> prog
 %%
 
 prog:
-  | v = value EOL { Some v }
-  | EOF           { None   } ;
+  | id = id EOL { Some id }
+  | EOF         { None   }
+  ;
 
-params:
-  | LPAREN vl = list_fields RPAREN { vl } ;
+ref_value:
+  id = ID { id, None, (gen_polymorphic_type ()) } ;
+
+id:
+  | ref = ref_value                { ref }
+  | id = ID EQ v = value           { id, v, rb_typeof v }
+  | c = CONST                      { c, None, TConst (gen_polymorphic_type ()) }
+  | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
+  | DEF fn = ID p = params END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
+  | v = value                      { "ORPHAN", v, rb_typeof v }
+  ;
 
 value:
-  | LBRACE obj = obj_fields RBRACE { `Hash obj         }
-  | LBRACK vl = list_fields RBRACK { `Array vl         }
-  | s = STRING                     { `String s         }
-  | i = INT                        { `Int i            }
-  | x = FLOAT                      { `Float x          }
-  | TRUE                           { `Bool true        }
-  | FALSE                          { `Bool false       }
-  | DEF fn = ID p = params END     { `Func (fn, p)     }
-  | id = ID                        { `Id (id, `None)   }
-  | id = ID EQ v = value           { `Id (id, v)       }
-  | c = CONST EQ v = value         { `Const (c, v)     }
-  | c = CONST                      { `Const (c, `None) }
-  | NIL                            { `Nil              } ;
+  | LBRACE obj = obj_fields RBRACE { Hash obj }
+  | LBRACK vl = list_fields RBRACK { Array vl }
+  | s = STRING                     { String s }
+  | i = INT                        { Int i }
+  | x = FLOAT                      { Float x }
+  | TRUE                           { Bool true }
+  | FALSE                          { Bool false }
+  | NIL                            { Nil }
+  ;
+
+params:
+  LPAREN p = separated_list(COMMA, ref_value) RPAREN { p } ;
 
 obj_fields:
-    obj = separated_list(COMMA, obj_field)    { obj } ;
+  obj = separated_list(COMMA, obj_field)    { obj } ;
 
 obj_field:
-    k = value COLON v = value                 { (k, v) } ;
+  k = value COLON v = value                 { k, v } ;
 
 list_fields:
-    vl = separated_list(COMMA, value)         { vl } ;
+  vl = separated_list(COMMA, value)         { vl } ;
