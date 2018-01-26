@@ -33,14 +33,14 @@ prog:
   ;
 
 ref_value:
-  id = ID { id, None, gen_polymorphic_type } ;
+  id = ID { id, None, (gen_polymorphic_type ()) } ;
 
 id:
   | ref = ref_value                { ref }
   | id = ID EQ v = value           { id, v, rb_typeof v }
-  | c = CONST                      { c, None, TConst gen_polymorphic_type }
+  | c = CONST                      { c, None, TConst (gen_polymorphic_type ()) }
   | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
-  | DEF fn = ID p = params END     { fn, Func p, TFunc gen_polymorphic_type }
+  | DEF fn = ID p = params END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
   | v = value                      { "ORPHAN", v, rb_typeof v }
   ;
 

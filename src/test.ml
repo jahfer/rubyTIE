@@ -20,6 +20,7 @@ let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some ((_id, value, t) as id) ->
     printf "%a\n" Ruby.print_signature id;
+    Ruby.reset_type_variable ();
     parse_and_print lexbuf
   | None -> ()
 
