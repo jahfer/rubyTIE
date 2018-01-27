@@ -29,7 +29,7 @@
 
 prog:
   | id = id EOL { Some id }
-  | EOF         { None   }
+  | EOF         { None    }
   ;
 
 ref_value:
@@ -41,7 +41,7 @@ id:
   | c = CONST                      { c, None, TConst (gen_polymorphic_type ()) }
   | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
   | DEF fn = ID p = params END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
-  | v = value                      { "ORPHAN", v, rb_typeof v }
+  | v = value                      { "(orphan)", v, rb_typeof v }
   ;
 
 value:
