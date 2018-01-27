@@ -24,11 +24,12 @@ and value =
 
 and id = string * value * t
 
-
 let type_variable = ref (Char.code 'a')
+
 let gen_polymorphic_type () =
   let tv = !type_variable in
   incr type_variable; TPoly(Core.sprintf "'%c" (Char.chr tv))
+
 let reset_type_variable () = type_variable := (Char.code 'a')
 
 let id_type (_id, _value, t) = t
@@ -65,7 +66,6 @@ and print_args outc arr =
       if i > 0 then
         Out_channel.output_string outc ", ";
       output_sig outc t) arr
-
 
 let rec output_value outc = function
   | Hash obj     -> print_hash outc obj
