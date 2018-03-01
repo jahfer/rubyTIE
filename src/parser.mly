@@ -21,10 +21,10 @@
 %token EOS
 
 %{
-  open Ruby
+  open Ast
 %}
 
-%start <Ruby.id option> prog
+%start <Ast.id option> prog
 
 %%
 
@@ -41,15 +41,15 @@ statement_end: EOS | EOF {};
 
 statement:
   | ref = ref                       { ref }
-  | id = ID EQ v = value            { id, v, rb_typeof v }
-  | c = CONST                       { c, None, TConst (gen_polymorphic_type ()) }
-  | c = CONST EQ v = value          { c, v, TConst (rb_typeof v) }
-  | DEF fn = ID p = params EOS? END { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
-  | v = value                       { "(orphan)", v, rb_typeof v }
+  | id = ID EQ v = value            { id, v, Ruby.typeof v }
+  | c = CONST                       { c, None, TConst (Ruby.Type_variable.gen_next ()) }
+  | c = CONST EQ v = value          { c, v, TConst (Ruby.typeof v) }
+  | DEF fn = ID p = params EOS? END { fn, Func p, TFunc (Ast.arg_types p, Ruby.Type_variable.gen_next ()) }
+  | v = value                       { "(orphan)", v, Ruby.typeof v }
   ;
 
 ref:
-  id = ID { id, None, (gen_polymorphic_type ()) } ;
+  id = ID { id, None, (Ruby.Type_variable.gen_next ()) } ;
 
 value:
   | LBRACE obj = obj_fields RBRACE { Hash obj }
