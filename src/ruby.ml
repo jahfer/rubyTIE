@@ -67,7 +67,7 @@ and print_args outc arr =
         Out_channel.output_string outc ", ";
       output_sig outc t) arr
 
-let rec output_value outc = function
+let rec print_value outc = function
   | Hash obj     -> print_hash outc obj
   | Array l      -> printf "[%a]" print_list l
   | String s     -> printf "\"%s\"" s
@@ -83,7 +83,7 @@ and print_hash outc obj =
   Out_channel.output_string outc "{ ";
   let sep = ref "" in
   List.iter ~f:(fun (key, value) ->
-      printf "%s%a: %a" !sep output_value key output_value value;
+      printf "%s%a: %a" !sep print_value key print_value value;
       sep := ",\n  ") obj;
   Out_channel.output_string outc " }"
 
@@ -91,7 +91,7 @@ and print_list outc arr =
   List.iteri ~f:(fun i v ->
       if i > 0 then
         Out_channel.output_string outc ", ";
-      output_value outc v) arr
+      print_value outc v) arr
 
 and print_signature outc (id, value, typ) = match typ with
-  | _ -> printf "val %s : %a = %a" id output_sig typ output_value value
+  | _ -> printf "val %s : %a = %a" id output_sig typ print_value value

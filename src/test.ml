@@ -7,13 +7,19 @@ let print_position outx lexbuf =
   fprintf outx "%s:%d:%d" pos.pos_fname
     pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
 
+let state : Lexer.lex_state = {
+  pending_termination = false;
+  at_eos = false;
+}
+
 let parse_with_error lexbuf =
-  try Parser.prog Lexer.read lexbuf with
+  try Parser.prog (Lexer.read state) lexbuf with
   | SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
     None
   | Parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position lexbuf;
+    let tok = Lexing.lexeme lexbuf in
+    fprintf stderr "%a: syntax error (%s)\n" print_position lexbuf tok;
     exit (-1)
 
 let rec parse_and_print lexbuf =

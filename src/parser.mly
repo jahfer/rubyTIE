@@ -16,33 +16,40 @@
 %token <string> ID
 %token <string> CONST
 %token EQ
-%token EOL
 %token DEF
 %token END
+%token EOS
 
 %{
   open Ruby
 %}
 
 %start <Ruby.id option> prog
+
 %%
 
 prog:
-  | id = id EOL { Some id }
-  | EOF         { None    }
+  | s = top_statement { Some s }
+  | EOF               { None   }
   ;
 
-ref_value:
-  id = ID { id, None, (gen_polymorphic_type ()) } ;
+top_statement:
+  s = statement statement_end { s }
+  ;
 
-id:
-  | ref = ref_value                { ref }
+statement_end: EOS | EOF {};
+
+statement:
+  | ref = ref                      { ref }
   | id = ID EQ v = value           { id, v, rb_typeof v }
   | c = CONST                      { c, None, TConst (gen_polymorphic_type ()) }
   | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
-  | DEF fn = ID p = params END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
+  | DEF fn = ID p = params EOS? END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
   | v = value                      { "(orphan)", v, rb_typeof v }
   ;
+
+ref:
+  id = ID { id, None, (gen_polymorphic_type ()) } ;
 
 value:
   | LBRACE obj = obj_fields RBRACE { Hash obj }
@@ -56,7 +63,7 @@ value:
   ;
 
 params:
-  LPAREN p = separated_list(COMMA, ref_value) RPAREN { p } ;
+  LPAREN p = separated_list(COMMA, ref) RPAREN { p } ;
 
 obj_fields:
   obj = separated_list(COMMA, obj_field)    { obj } ;
