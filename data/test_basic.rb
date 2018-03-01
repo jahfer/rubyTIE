@@ -9,7 +9,7 @@ y = [1,2,3]
 @x = :my_symbol
 FooBar = 151.56
 stmt1 = 3; stmt2 = 1
-func = -> { |a, b| a + b }
+func = -> (a, b) { }
 
 def sum0() end
 

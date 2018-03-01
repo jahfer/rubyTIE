@@ -22,6 +22,8 @@ let rec typeof = function
   | String _ -> TString
   | Symbol _ -> TSymbol
   | Func args -> TFunc (arg_types args, (Type_variable.gen_next ()))
+  | Lambda (args, body) -> TLambda (arg_types args, Ast.context_type (body))
+  | BinOp (_op, _a, b) -> TCall (id_type b)
   | None -> TAny
 
 
@@ -38,6 +40,8 @@ module Printer = struct
     | TNil     -> Out_channel.output_string outc "nil"
     | TAny     -> printf "any"
     | TFunc (args, ret)  -> printf "fun (%a) -> %a" print_args args output_sig ret
+    | TLambda (args, ret)  -> printf "lambda (%a) -> %a" print_args args output_sig ret
+    | TCall t -> printf "%a" output_sig t
     | TPoly t  -> printf "%s" t
 
   and print_args outc arr =
@@ -58,6 +62,11 @@ module Printer = struct
     | Nil          -> Out_channel.output_string outc "nil"
     | None         -> printf "?"
     | Func args    -> printf "fun { ... }"
+    | Lambda _ -> printf "lambda { ... }"
+    | BinOp (op, _, _) -> printf begin
+        match op with
+        | Add -> "x + y" | Sub -> "x - y" | Mul -> "x * y" | Div -> "x / y"
+      end
 
   and print_hash outc obj =
     Out_channel.output_string outc "{ ";

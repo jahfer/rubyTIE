@@ -9,6 +9,8 @@
     (* newline-agnostic unterminated statement *)
     mutable pending_termination : bool;
     mutable at_eos : bool;
+    mutable paren_level : int;
+    mutable lambda_stack : int list;
   }
 
   let next_line lexbuf =
@@ -52,14 +54,24 @@ rule read state = parse
       end else begin
         next_line lexbuf; state.at_eos <- true; EOS
       end
-    }
+  }
   | "def"    { newline_agnostic_tok state; DEF }
+  | "->"     {
+      state.lambda_stack <- state.paren_level :: state.lambda_stack;
+      LAMBDA
+  }
   | '"'      { ack_tok state; read_string (Buffer.create 17) lexbuf }
   | ':'      { ack_tok state; COLON }
   | ';'      { ack_tok state; EOS }
   | ','      { ack_tok state; COMMA }
   | '='      { ack_tok state; EQ }
-  | '{'      { newline_agnostic_tok state; LBRACE }
+  | '+'      { ack_tok state; PLUS }
+  | '{'      { newline_agnostic_tok state;
+    match state.lambda_stack with
+    | el :: tl when el = state.paren_level ->
+      state.lambda_stack <- tl; LAMBEG
+    | _ -> LBRACE
+  }
   | '['      { newline_agnostic_tok state; LBRACK }
   | '('      { newline_agnostic_tok state; LPAREN }
   | '}'      { terminating_tok state;      RBRACE }

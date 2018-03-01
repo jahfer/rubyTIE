@@ -19,6 +19,9 @@
 %token DEF
 %token END
 %token EOS
+%token LAMBDA
+%token LAMBEG
+%token PLUS
 
 %{
   open Ast
@@ -40,16 +43,23 @@ top_statement:
 statement_end: EOS | EOF {};
 
 statement:
-  | ref = ref                       { ref }
-  | id = ID EQ v = value            { id, v, Ruby.typeof v }
-  | c = CONST                       { c, None, TConst (Ruby.Type_variable.gen_next ()) }
-  | c = CONST EQ v = value          { c, v, TConst (Ruby.typeof v) }
-  | DEF fn = ID p = params EOS? END { fn, Func p, TFunc (Ast.arg_types p, Ruby.Type_variable.gen_next ()) }
-  | v = value                       { "(orphan)", v, Ruby.typeof v }
+  | ref = ref                    { ref }
+  | id = ID EQ v = value         { id, v, Ruby.typeof v }
+  | c = CONST                    { c, None, TConst (Ruby.Type_variable.gen_next ()) }
+  | c = CONST EQ v = value       { c, v, TConst (Ruby.typeof v) }
+  | f = func                     { f }
+  | c = method_call              { "(call)", c, Ruby.typeof c }
+  | v = value                    { "(orphan)", v, Ruby.typeof v }
   ;
 
 ref:
   id = ID { id, None, (Ruby.Type_variable.gen_next ()) } ;
+
+func:
+  DEF fn = ID p = f_args EOS? END {
+    fn, Func p, TFunc (Ast.arg_types p, Ruby.Type_variable.gen_next ())
+  }
+  ;
 
 value:
   | LBRACE obj = obj_fields RBRACE { Hash obj }
@@ -61,9 +71,18 @@ value:
   | TRUE                           { Bool true }
   | FALSE                          { Bool false }
   | NIL                            { Nil }
+  | LAMBDA l = lambda              { l }
   ;
 
-params:
+lambda:
+  | body = lambda_body               { Lambda ([], body) }
+  | args = f_args body = lambda_body { Lambda (args, body) }
+  ;
+
+lambda_body:
+  LAMBEG s = statement* RBRACE { (* This hangs right now... *) [s] } ;
+
+f_args:
   LPAREN p = separated_list(COMMA, ref) RPAREN { p } ;
 
 obj_fields:
@@ -74,3 +93,8 @@ obj_field:
 
 list_fields:
   vl = separated_list(COMMA, value)         { vl } ;
+
+method_call:
+  a = ref op b = ref { BinOp(Ast.Add, a, b) } ;
+
+op: PLUS { } ;
