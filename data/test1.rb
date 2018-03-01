@@ -6,8 +6,9 @@ params = {
 }
 
 y = [1,2,3]
-@x = 4
+@x = :my_symbol
 FooBar = 151.56
+stmt1 = 3; stmt2 = 1
 
 def sum0() end
 

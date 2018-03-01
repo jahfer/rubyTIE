@@ -56,6 +56,7 @@ rule read state = parse
   | "def"    { newline_agnostic_tok state; DEF }
   | '"'      { ack_tok state; read_string (Buffer.create 17) lexbuf }
   | ':'      { ack_tok state; COLON }
+  | ';'      { ack_tok state; EOS }
   | ','      { ack_tok state; COMMA }
   | '='      { ack_tok state; EQ }
   | '{'      { newline_agnostic_tok state; LBRACE }
@@ -72,7 +73,7 @@ rule read state = parse
   | "end"    { ack_tok state; END }
   | const    { ack_tok state; CONST (Lexing.lexeme lexbuf) }
   | id       { terminating_tok state; ID (Lexing.lexeme lexbuf) }
-  | _        { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf ^ "!")) }
+  | _        { raise (SyntaxError (sprintf "Unexpected char: '%s'" (Lexing.lexeme lexbuf))) }
   | eof      { EOF }
 
 and read_string buf = parse

@@ -6,6 +6,7 @@ type t =
   | TArray of t
   | TNil
   | TString
+  | TSymbol
   | TConst of t
   | TFunc of t list * t
   | TAny
@@ -17,9 +18,10 @@ and value =
   | Float of float
   | Int of int
   | Array of value list
-  | Nil
   | String of string
+  | Symbol of string
   | Func of id list
+  | Nil
   | None
 
 and id = string * value * t
@@ -45,6 +47,7 @@ let rec rb_typeof = function
   | Array _ -> TArray (gen_polymorphic_type ())
   | Nil -> TNil
   | String _ -> TString
+  | Symbol _ -> TSymbol
   | Func args -> TFunc (arg_types args, (gen_polymorphic_type ()))
   | None -> TAny
 
@@ -52,6 +55,7 @@ let rec output_sig outc = function
   | THash    -> printf "hash"
   | TArray t -> printf "array<%a>" output_sig t
   | TString  -> printf "string"
+  | TSymbol  -> printf "symbol"
   | TInt     -> printf "int"
   | TFloat   -> printf "float"
   | TConst t -> printf "const<%a>" output_sig t
@@ -71,6 +75,7 @@ let rec print_value outc = function
   | Hash obj     -> print_hash outc obj
   | Array l      -> printf "[%a]" print_list l
   | String s     -> printf "\"%s\"" s
+  | Symbol s     -> printf ":%s" s
   | Int i        -> printf "%d" i
   | Float x      -> printf "%f" x
   | Bool true    -> Out_channel.output_string outc "true"

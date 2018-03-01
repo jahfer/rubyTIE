@@ -40,12 +40,12 @@ top_statement:
 statement_end: EOS | EOF {};
 
 statement:
-  | ref = ref                      { ref }
-  | id = ID EQ v = value           { id, v, rb_typeof v }
-  | c = CONST                      { c, None, TConst (gen_polymorphic_type ()) }
-  | c = CONST EQ v = value         { c, v, TConst (rb_typeof v) }
-  | DEF fn = ID p = params EOS? END     { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
-  | v = value                      { "(orphan)", v, rb_typeof v }
+  | ref = ref                       { ref }
+  | id = ID EQ v = value            { id, v, rb_typeof v }
+  | c = CONST                       { c, None, TConst (gen_polymorphic_type ()) }
+  | c = CONST EQ v = value          { c, v, TConst (rb_typeof v) }
+  | DEF fn = ID p = params EOS? END { fn, Func p, TFunc (arg_types p, gen_polymorphic_type ()) }
+  | v = value                       { "(orphan)", v, rb_typeof v }
   ;
 
 ref:
@@ -54,6 +54,7 @@ ref:
 value:
   | LBRACE obj = obj_fields RBRACE { Hash obj }
   | LBRACK vl = list_fields RBRACK { Array vl }
+  | COLON s = ID                   { Symbol s }
   | s = STRING                     { String s }
   | i = INT                        { Int i }
   | x = FLOAT                      { Float x }
