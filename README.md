@@ -35,7 +35,7 @@ func.call(y)
 ```
 
 ### Output
-```ocaml
+```
 foo : 'a = ?
 (orphan) : int = 45
 params : hash = { "key": true }
