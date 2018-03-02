@@ -1,5 +1,12 @@
 open Ast
 
+(*
+  need locals map!
+
+  b = 3 : int
+  a = b : any <-- WRONG
+*)
+
 module Type_variable = struct
   let current_var = ref (Char.code 'a')
 

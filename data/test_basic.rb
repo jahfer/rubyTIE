@@ -26,3 +26,6 @@ func = -> { }
 func = -> (local) { }
 func = -> (local) { local.first }
 func.call(y)
+
+b = 3
+a = b

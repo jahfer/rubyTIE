@@ -31,6 +31,7 @@ and value =
 and id = string * value * t
 
 let id_type (_id, _value, t) = t
+let id_value (_id, value, _t) = value
 let arg_types args = List.map id_type args
 let context_type body = match List.rev body with
 | last :: _ -> id_type last

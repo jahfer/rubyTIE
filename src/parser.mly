@@ -23,26 +23,30 @@ prog:
   ;
 
 top_statement:
-  s = statement top_statement_end { Printf.printf "top_statement\n"; s } ;
+  s = statement top_statement_end { s } ;
 
 internal_statement:
   s = statement statement_end { s } ;
 
 statement_end:
-  EOS { Printf.printf "statement_end\n" };
+  EOS { };
 
 top_statement_end:
-  statement_end | EOF { Printf.printf "top_statement_end\n" };
+  statement_end | EOF { };
 
 statement:
-  | ref = operation              { Printf.printf "operation\n"; ref }
-  | id = ID EQ v = literal       { Printf.printf "id=\n"; id, v, Ruby.typeof v }
-  | c = CONST                    { Printf.printf "const\n"; c, None, TConst (Ruby.Type_variable.gen_next ()) }
-  | c = CONST EQ v = literal     { Printf.printf "const=\n"; c, v, TConst (Ruby.typeof v) }
-  | f = func                     { Printf.printf "func\n"; f }
-  | v = literal                  { Printf.printf "literal\n"; "(orphan)", v, Ruby.typeof v }
-  | e = expr                     { Printf.printf "expr\n"; e }
+  | ref = operation              { ref }
+  | id = ID EQ v = rhs_assign    { id, v, Ruby.typeof v }
+  | c = CONST                    { c, None, TConst (Ruby.Type_variable.gen_next ()) }
+  | c = CONST EQ v = rhs_assign  { c, v, TConst (Ruby.typeof v) }
+  | f = func                     { f }
+  | v = literal                  { "(orphan)", v, Ruby.typeof v }
+  | e = expr                     { e }
   ;
+
+rhs_assign:
+  | l = literal { l }
+  | s = statement { Ast.id_value s }
 
 expr:
   | c = command_call { c }
@@ -52,20 +56,20 @@ command_call:
   c = command { "(call)", c, Ruby.Type_variable.gen_next () } ;
 
 command:
-  | c = method_call args = command_args                     { Printf.printf("command 1\n"); Call(None, c, args) }
-  | c1 = fcall call_op c2 = method_call                     { Printf.printf("command 2\n"); Call(Some(c1), c2, []) }
-  | c1 = fcall call_op c2 = method_call args = command_args { Printf.printf("command 2\n"); Call(Some(c1), c2, args) }
+  | c = method_call args = command_args                     { Call(None, c, args) }
+  | c1 = fcall call_op c2 = method_call                     { Call(Some(c1), c2, []) }
+  | c1 = fcall call_op c2 = method_call args = command_args { Call(Some(c1), c2, args) }
   ;
 
-call_op: DOT { Printf.printf "call_op\n"; } ;
+call_op: DOT { } ;
 
 fcall:
-  | id = operation   { Printf.printf "fcall\n"; id }
-  | id = method_call { Printf.printf "fcall\n"; id, None, (Ruby.Type_variable.gen_next ()) }
+  | id = operation   { id }
+  | id = method_call { id, None, (Ruby.Type_variable.gen_next ()) }
   ;
 
 method_call:
-  id = FID { Printf.printf "method_call\n"; id } ;
+  id = FID { id } ;
 
 command_args:
   | node = command_call { [node] }
@@ -73,7 +77,7 @@ command_args:
   ;
 
 operation:
-  id = ID { Printf.printf "operation\n"; id, None, (Ruby.Type_variable.gen_next ()) } ;
+  id = ID { id, None, (Ruby.Type_variable.gen_next ()) } ;
 
 func:
   DEF fn = ID p = args EOS? END {
@@ -101,16 +105,16 @@ lambda:
 
 lambda_body:
   | LAMBEG s1 = internal_statement+ s2 = statement statement_end? RBRACE {
-    Printf.printf "lambda_body\n"; List.rev (s2 :: List.rev s1)
+    List.rev (s2 :: List.rev s1)
   }
   | LAMBEG s = statement statement_end? RBRACE {
-    Printf.printf "lambda_body\n"; [s]
+    [s]
   }
-  | LAMBEG RBRACE { Printf.printf "lambda_body\n"; [] }
+  | LAMBEG RBRACE { [] }
   ;
 
 args:
-  LPAREN p = separated_list(COMMA, operation) RPAREN { Printf.printf "args\n"; p } ;
+  LPAREN p = separated_list(COMMA, operation) RPAREN { p } ;
 
 obj_fields:
   obj = separated_list(COMMA, obj_field)    { obj } ;
