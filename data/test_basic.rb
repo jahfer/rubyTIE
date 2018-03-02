@@ -22,10 +22,10 @@ false
 y = [1,2,3]
 y.first
 
-func = -> { }
-func = -> (local) { }
-func = -> (local) { local.first }
-func.call(y)
+func1 = -> { }
+func2 = -> (local) { }
+func3 = -> (local) { local.first }
+func3.call(y)
 
 b = 3
 a = b

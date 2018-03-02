@@ -49,8 +49,8 @@ sum2 : fun ('a, 'b) -> 'c = fun { ... }
 (orphan) : bool = false
 y : array<'b> = [1, 2, 3]
 (call) : 'b = y.first (...)
-func : lambda () -> nil = -> { ... }
-func : lambda ('a) -> nil = -> { ... }
-func : lambda ('a) -> 'c = -> { ... }
-(call) : 'c = func.call (...)
+func1 : lambda () -> nil = -> { ... }
+func2 : lambda ('a) -> nil = -> { ... }
+func3 : lambda ('a) -> 'c = -> { ... }
+(call) : 'c = func3.call (...)
 ```
