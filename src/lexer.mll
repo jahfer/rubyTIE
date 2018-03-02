@@ -46,7 +46,7 @@ let exp = ['e' 'E'] ['-' '+']? digit+
 let float = digit* frac? exp?
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
-let id = ['@']* ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let id = ['@']* ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let const = ['A'-'Z'] ['a'-'z' 'A'-'Z' '_']*
 
 rule read state = parse

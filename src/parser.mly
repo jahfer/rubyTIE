@@ -13,7 +13,7 @@
   open Ast
 %}
 
-%start <Ast.id option> prog
+%start <Ast.expr option> prog
 
 %%
 
@@ -25,9 +25,6 @@ prog:
 top_statement:
   s = statement top_statement_end { s } ;
 
-internal_statement:
-  s = statement statement_end { s } ;
-
 statement_end:
   EOS { };
 
@@ -35,57 +32,50 @@ top_statement_end:
   statement_end | EOF { };
 
 statement:
-  | ref = operation              { ref }
-  | id = ID EQ v = rhs_assign    { id, v, Ruby.typeof v }
-  | c = CONST                    { c, None, TConst (Ruby.Type_variable.gen_next ()) }
-  | c = CONST EQ v = rhs_assign  { c, v, TConst (Ruby.typeof v) }
-  | f = func                     { f }
-  | v = literal                  { "(orphan)", v, Ruby.typeof v }
+  | ref = identifier             { Value(ref) }
+  | id = ID EQ v = rhs_assign    { Value(id, v, Ruby.typeof v) }
+  | c = CONST                    { Value(c, None, TConst (Ruby.Type_variable.gen_new_t ())) }
+  | c = CONST EQ v = rhs_assign  { Value(c, v, TConst (Ruby.typeof v)) }
+  | p = primitive                { Orphan(p, Ruby.typeof p) }
   | e = expr                     { e }
   ;
 
 rhs_assign:
-  | l = literal { l }
-  | s = statement { Ast.id_value s }
+  | s = statement { Ast.expr_return_value s }
+  ;
 
 expr:
   | c = command_call { c }
+  | f = func     { f }
   ;
 
 command_call:
-  c = command { "(call)", c, Ruby.Type_variable.gen_next () } ;
+  c = command { c } ;
 
 command:
-  | c = method_call args = command_args                     { Call(None, c, args) }
-  | c1 = fcall call_op c2 = method_call                     { Call(Some(c1), c2, []) }
-  | c1 = fcall call_op c2 = method_call args = command_args { Call(Some(c1), c2, args) }
+  | c = method_call args = command_args                          { Call(None, c, args) }
+  | c1 = identifier call_op c2 = method_call                     { Call(Some(Value(c1)), c2, []) }
+  | c1 = identifier call_op c2 = method_call args = command_args { Call(Some(Value(c1)), c2, args) }
   ;
 
 call_op: DOT { } ;
-
-fcall:
-  | id = operation   { id }
-  | id = method_call { id, None, (Ruby.Type_variable.gen_next ()) }
-  ;
 
 method_call:
   id = FID { id } ;
 
 command_args:
   | node = command_call { [node] }
-  | args = args         { args }
+  | args = fn_args { List.map (fun x -> Value(x)) args }
   ;
 
-operation:
-  id = ID { id, None, (Ruby.Type_variable.gen_next ()) } ;
+identifier:
+  id = ID { id, Any, Ruby.Type_variable.gen_new_t () } ;
 
 func:
-  DEF fn = ID p = args EOS? END {
-    fn, Func p, TFunc (Ast.arg_types p, Ruby.Type_variable.gen_next ())
-  }
+  DEF fn = ID args = fn_args EOS? END { Func(fn, args, Orphan(Any, Ruby.Type_variable.gen_new_t ())) }
   ;
 
-literal:
+primitive:
   | LBRACE obj = obj_fields RBRACE { Hash obj }
   | LBRACK vl = list_fields RBRACK { Array vl }
   | COLON s = ID                   { Symbol s }
@@ -100,27 +90,24 @@ literal:
 
 lambda:
   | body = lambda_body               { Lambda ([], body) }
-  | args = args body = lambda_body   { Lambda (args, body) }
+  | args = fn_args body = lambda_body   { Lambda (args, body) }
   ;
 
 lambda_body:
-  | LAMBEG s1 = internal_statement+ s2 = statement statement_end? RBRACE {
-    List.rev (s2 :: List.rev s1)
-  }
   | LAMBEG s = statement statement_end? RBRACE {
-    [s]
+    s
   }
-  | LAMBEG RBRACE { [] }
+  | LAMBEG RBRACE { Orphan(Nil, TNil) }
   ;
 
-args:
-  LPAREN p = separated_list(COMMA, operation) RPAREN { p } ;
+fn_args:
+  LPAREN p = separated_list(COMMA, identifier) RPAREN { p } ;
 
 obj_fields:
   obj = separated_list(COMMA, obj_field)    { obj } ;
 
 obj_field:
-  k = literal COLON v = literal             { k, v } ;
+  k = primitive COLON v = primitive             { k, v } ;
 
 list_fields:
-  vl = separated_list(COMMA, literal)       { vl } ;
+  vl = separated_list(COMMA, primitive)       { vl } ;

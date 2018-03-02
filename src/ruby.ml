@@ -10,7 +10,7 @@ open Ast
 module Type_variable = struct
   let current_var = ref (Char.code 'a')
 
-  let gen_next () =
+  let gen_new_t () =
     let tv = !current_var in
     incr current_var; Ast.TPoly(Core.sprintf "'%c" (Char.chr tv))
 
@@ -24,15 +24,13 @@ let rec typeof = function
   | Bool _ -> TBool
   | Float _ -> TFloat
   | Int _ -> TInt
-  | Array _ -> TArray (Type_variable.gen_next ())
+  | Array _ -> TArray (Type_variable.gen_new_t ())
   | Nil -> TNil
   | String _ -> TString
   | Symbol _ -> TSymbol
-  | Func args -> TFunc (arg_types args, (Type_variable.gen_next ()))
-  | Lambda (args, body) -> TLambda (arg_types args, Ast.context_type (body))
-  | Call (receiver, meth, args) -> TCall (Type_variable.gen_next ())
+  | Lambda (args, body) -> TLambda (arg_types args, Ast.expr_return_t (body))
   | None -> TAny
-
+  | Any -> TAny
 
 module Printer = struct
   let rec output_sig outc = function
@@ -46,12 +44,11 @@ module Printer = struct
     | TBool    -> Out_channel.output_string outc "bool"
     | TNil     -> Out_channel.output_string outc "nil"
     | TAny     -> printf "any"
-    | TFunc (args, ret)  -> printf "fun (%a) -> %a" print_args args output_sig ret
-    | TLambda (args, ret)  -> printf "lambda (%a) -> %a" print_args args output_sig ret
+    | TLambda (args, ret)  -> printf "lambda (%a) -> %a" print_args_t args output_sig ret
     | TCall t -> printf "%a" output_sig t
     | TPoly t  -> printf "%s" t
 
-  and print_args outc arr =
+  and print_args_t outc arr =
     List.iteri ~f:(fun i t ->
         if i > 0 then
           Out_channel.output_string outc ", ";
@@ -68,13 +65,8 @@ module Printer = struct
     | Bool false   -> Out_channel.output_string outc "false"
     | Nil          -> Out_channel.output_string outc "nil"
     | None         -> printf "?"
-    | Func args    -> printf "fun { ... }"
-    | Call (receiver, meth, _args) -> begin
-        match receiver with
-        | Some(name, _, _) -> printf "%s.%s (...)" name meth
-        | None -> printf "self.%s (...)" meth
-      end
-    | Lambda _ -> printf "-> { ... }"
+    | Lambda _     -> printf "-> { ... }"
+    | Any          -> printf "?"
 
   and print_hash outc obj =
     Out_channel.output_string outc "{ ";
@@ -92,4 +84,21 @@ module Printer = struct
 
   and print_signature outc (id, value, typ) = match typ with
     | _ -> printf "%s : %a = %a" id output_sig typ print_value value
+
+  and print_args outc arr =
+    List.iteri ~f:(fun i t ->
+        if i > 0 then
+          Out_channel.output_string outc ", ";
+        print_signature outc t) arr
+
+  let rec print_expr outc = function
+    | Call (receiver, meth, args) -> begin
+      match receiver with
+      | Some(expr) -> printf "(%a).%s (...)" print_expr expr meth
+      | None -> printf "self.%s (...)" meth
+    end
+    | Func (name, args, body) -> printf "%s : fun (%a) -> %a" name print_args args print_expr body
+    | Value id -> print_signature outc id
+    | Orphan (value, t) -> printf "%a" print_signature ("(orphan)", value, t)
+    | Body (expr1, expr2) -> print_expr outc expr2
 end

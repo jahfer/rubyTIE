@@ -8,7 +8,6 @@ type t =
   | TString
   | TSymbol
   | TConst of t
-  | TFunc of t list * t
   | TAny
   | TPoly of string
   | TLambda of t list * t
@@ -22,13 +21,33 @@ and value =
   | Array of value list
   | String of string
   | Symbol of string
-  | Func of id list
+  | Lambda of id list * expr
   | Nil
   | None
-  | Lambda of id list * id list
-  | Call of id option * string * id list (* receiver, method, args *)
+  | Any
+
+and expr =
+  | Call of expr option * string * expr list (* receiver, method, args *)
+  | Func of string * id list * expr (* name, args, body *)
+  | Value of id
+  | Orphan of value * t
+  | Body of expr * expr
 
 and id = string * value * t
+
+let rec expr_return_value = function
+  | Value ((_, value, _)) -> value
+  | Orphan (value, _) -> value
+  | Func (_, _, expr) -> expr_return_value expr
+  | Call _ -> Any
+  | Body (_, b) -> expr_return_value b
+
+let rec expr_return_t = function
+  | Value ((_, _, t)) -> t
+  | Orphan (_, t) -> t
+  | Func (_, _, expr) -> expr_return_t expr
+  | Call _ -> TAny
+  | Body (_, b) -> expr_return_t b
 
 let id_type (_id, _value, t) = t
 let id_value (_id, value, _t) = value
