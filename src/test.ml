@@ -12,6 +12,7 @@ let state : Lexer.lex_state = {
   at_eos = false;
   paren_level = 0;
   lambda_stack = [];
+  fn_call = false;
 }
 
 let parse_with_error lexbuf =
@@ -27,7 +28,7 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some ((_id, value, t) as id) ->
-    printf "%a\n" Ruby.Printer.print_signature id;
+    printf "%a\n\n" Ruby.Printer.print_signature id;
     Ruby.Type_variable.reset ();
     parse_and_print lexbuf
   | None -> ()

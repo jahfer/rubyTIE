@@ -23,7 +23,7 @@ let rec typeof = function
   | Symbol _ -> TSymbol
   | Func args -> TFunc (arg_types args, (Type_variable.gen_next ()))
   | Lambda (args, body) -> TLambda (arg_types args, Ast.context_type (body))
-  | BinOp (_op, _a, b) -> TCall (id_type b)
+  | Call (receiver, meth, args) -> TCall (Type_variable.gen_next ())
   | None -> TAny
 
 
@@ -62,11 +62,12 @@ module Printer = struct
     | Nil          -> Out_channel.output_string outc "nil"
     | None         -> printf "?"
     | Func args    -> printf "fun { ... }"
-    | Lambda _ -> printf "lambda { ... }"
-    | BinOp (op, _, _) -> printf begin
-        match op with
-        | Add -> "x + y" | Sub -> "x - y" | Mul -> "x * y" | Div -> "x / y"
+    | Call (receiver, meth, _args) -> begin
+        match receiver with
+        | Some(name, _, _) -> printf "%s.%s (...)" name meth
+        | None -> printf "self.%s (...)" meth
       end
+    | Lambda _ -> printf "-> { ... }"
 
   and print_hash outc obj =
     Out_channel.output_string outc "{ ";
@@ -83,5 +84,5 @@ module Printer = struct
         print_value outc v) arr
 
   and print_signature outc (id, value, typ) = match typ with
-    | _ -> printf "val %s : %a = %a" id output_sig typ print_value value
+    | _ -> printf "%s : %a = %a" id output_sig typ print_value value
 end

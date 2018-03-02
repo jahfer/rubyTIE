@@ -25,16 +25,13 @@ and value =
   | Func of id list
   | Nil
   | None
-  | Lambda of id list * context
-  | BinOp of binop * id * id
+  | Lambda of id list * id list
+  | Call of id option * string * id list (* receiver, method, args *)
 
 and id = string * value * t
-and statement = id list
-and context = statement list
-and binop = Add | Sub | Mul | Div
 
 let id_type (_id, _value, t) = t
 let arg_types args = List.map id_type args
-let rec context_type = function
-  | stmt :: stmts -> context_type stmts
-  | stmt -> context_type stmt
+let context_type body = match List.rev body with
+| last :: _ -> id_type last
+| _ -> TNil

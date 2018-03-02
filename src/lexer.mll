@@ -11,6 +11,7 @@
     mutable at_eos : bool;
     mutable paren_level : int;
     mutable lambda_stack : int list;
+    mutable fn_call : bool;
   }
 
   let next_line lexbuf =
@@ -31,8 +32,10 @@
 
   let print_state state = printf {str|{
   pending_termination: %B,
-  at_eos: %B
-} |str} state.pending_termination state.at_eos;
+  at_eos: %B,
+  paren_level: %i,
+  fn_call: %B
+} |str} state.pending_termination state.at_eos state.paren_level state.fn_call;
     printf "\n"
 }
 
@@ -60,12 +63,14 @@ rule read state = parse
       state.lambda_stack <- state.paren_level :: state.lambda_stack;
       LAMBDA
   }
+  | '.'      {
+    state.fn_call <- true; ack_tok state; DOT
+  }
   | '"'      { ack_tok state; read_string (Buffer.create 17) lexbuf }
   | ':'      { ack_tok state; COLON }
   | ';'      { ack_tok state; EOS }
   | ','      { ack_tok state; COMMA }
   | '='      { ack_tok state; EQ }
-  | '+'      { ack_tok state; PLUS }
   | '{'      { newline_agnostic_tok state;
     match state.lambda_stack with
     | el :: tl when el = state.paren_level ->
@@ -84,7 +89,15 @@ rule read state = parse
   | "nil"    { ack_tok state; NIL }
   | "end"    { ack_tok state; END }
   | const    { ack_tok state; CONST (Lexing.lexeme lexbuf) }
-  | id       { terminating_tok state; ID (Lexing.lexeme lexbuf) }
+  | id       {
+    terminating_tok state;
+    if state.fn_call then begin
+      state.fn_call <- false;
+      FID (Lexing.lexeme lexbuf)
+    end else begin
+      ID (Lexing.lexeme lexbuf)
+    end
+  }
   | _        { raise (SyntaxError (sprintf "Unexpected char: '%s'" (Lexing.lexeme lexbuf))) }
   | eof      { EOF }
 

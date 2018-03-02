@@ -7,6 +7,9 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 endif
 
 build:
-	ocamlbuild -use-menhir -tag thread -use-ocamlfind -quiet -pkg core src/test.native
+	ocamlbuild -use-menhir -use-ocamlfind -quiet -pkg core src/test.native
 
-.PHONY: build
+clean:
+	corebuild -clean
+
+.PHONY: build clean
