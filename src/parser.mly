@@ -72,7 +72,12 @@ identifier:
   id = ID { id, Any, Ruby.Type_variable.gen_new_t () } ;
 
 func:
-  DEF fn = ID args = fn_args EOS? END { Func(fn, args, Orphan(Any, Ruby.Type_variable.gen_new_t ())) }
+  | DEF fn = ID args = fn_args EOS? END {
+    Func(fn, args, Orphan(Any, Ruby.Type_variable.gen_new_t ()))
+  }
+  | DEF fn = ID args = fn_args EOS? s = statement statement_end? END {
+    Func(fn, args, s)
+  }
   ;
 
 primitive:

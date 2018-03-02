@@ -16,9 +16,10 @@ FooBar = 151.56
 
 stmt1 = 3; stmt2 = 1
 
-def sum0() end
+def sum0(); false end
 
 def sum1(thing)
+  45
 end
 
 def sum2(thing1, thing2) end
@@ -28,10 +29,10 @@ false
 y = [1,2,3]
 y.first
 
-func = -> { }
-func = -> (local) { }
-func = -> (local) { local.first }
-func.call(y)
+func1 = -> { 45 }
+func2 = -> (local) { }
+func3 = -> (local, _x) { local.first }
+func3.call(y)
 ```
 
 ### Output
@@ -43,14 +44,14 @@ params : hash = { "key": true }
 FooBar : const<float> = 151.560000
 stmt1 : int = 3
 stmt2 : int = 1
-sum0 : fun () -> 'a = fun { ... }
-sum1 : fun ('a) -> 'b = fun { ... }
-sum2 : fun ('a, 'b) -> 'c = fun { ... }
+sum0 : fun () -> (orphan) : bool = false
+sum1 : fun (thing : 'a = ?) -> (orphan) : int = 45
+sum2 : fun (thing1 : 'a = ?, thing2 : 'b = ?) -> (orphan) : 'c = ?
 (orphan) : bool = false
 y : array<'b> = [1, 2, 3]
-(call) : 'b = y.first (...)
-func1 : lambda () -> nil = -> { ... }
+(y : 'a = ?).first (...)
+func1 : lambda () -> int = -> { ... }
 func2 : lambda ('a) -> nil = -> { ... }
-func3 : lambda ('a) -> 'c = -> { ... }
-(call) : 'c = func3.call (...)
+func3 : lambda ('a, 'b) -> any = -> { ... }
+(func3 : 'a = ?).call (...)
 ```

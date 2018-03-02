@@ -10,9 +10,10 @@ FooBar = 151.56
 
 stmt1 = 3; stmt2 = 1
 
-def sum0() end
+def sum0(); false end
 
 def sum1(thing)
+  45
 end
 
 def sum2(thing1, thing2) end
