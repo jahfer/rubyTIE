@@ -11,6 +11,8 @@ type t =
   | TFunc of t list * t
   | TAny
   | TPoly of string
+  | TLambda of t list * t
+  | TCall of t
 
 and value =
   | Hash of (value * value) list
@@ -23,8 +25,13 @@ and value =
   | Func of id list
   | Nil
   | None
+  | Lambda of id list * id list
+  | Call of id option * string * id list (* receiver, method, args *)
 
 and id = string * value * t
 
 let id_type (_id, _value, t) = t
 let arg_types args = List.map id_type args
+let context_type body = match List.rev body with
+| last :: _ -> id_type last
+| _ -> TNil

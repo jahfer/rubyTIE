@@ -10,6 +10,9 @@ let print_position outx lexbuf =
 let state : Lexer.lex_state = {
   pending_termination = false;
   at_eos = false;
+  paren_level = 0;
+  lambda_stack = [];
+  fn_call = false;
 }
 
 let parse_with_error lexbuf =
@@ -19,13 +22,13 @@ let parse_with_error lexbuf =
     None
   | Parser.Error ->
     let tok = Lexing.lexeme lexbuf in
-    fprintf stderr "%a: syntax error (%s)\n" print_position lexbuf tok;
+    fprintf stderr "%a: syntax error ('%s')\n" print_position lexbuf tok;
     exit (-1)
 
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some ((_id, value, t) as id) ->
-    printf "%a\n" Ruby.Printer.print_signature id;
+    printf "%a\n\n" Ruby.Printer.print_signature id;
     Ruby.Type_variable.reset ();
     parse_and_print lexbuf
   | None -> ()
