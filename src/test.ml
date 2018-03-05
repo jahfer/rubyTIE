@@ -28,7 +28,7 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) ->
-    printf "%a\n" Ruby.Printer.print_expr expr;
+    printf "%a\n" Ruby.Printer.print_expr_ast expr;
     Ruby.Type_variable.reset ();
     parse_and_print lexbuf
   | None -> ()

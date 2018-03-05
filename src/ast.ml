@@ -29,25 +29,29 @@ and value =
 and expr =
   | Call of expr option * string * expr list (* receiver, method, args *)
   | Func of string * id list * expr (* name, args, body *)
-  | Value of id
-  | Orphan of value * t
+  | Value of value * t
+  | Var of id
+  | Assign of string * expr
+  | ConstAssign of string * expr
   | Body of expr * expr
 
 and id = string * value * t
 
 let rec expr_return_value = function
-  | Value ((_, value, _)) -> value
-  | Orphan (value, _) -> value
-  | Func (_, _, expr) -> expr_return_value expr
+  | Var ((_, value, _)) -> value
+  | Value (value, _) -> value
   | Call _ -> Any
-  | Body (_, b) -> expr_return_value b
+  | Func (_, _, expr)
+  | Body (_, expr)
+  | Assign (_, expr)
+  | ConstAssign (_, expr) -> expr_return_value expr
 
 let rec expr_return_t = function
-  | Value ((_, _, t)) -> t
-  | Orphan (_, t) -> t
-  | Func (_, _, expr) -> expr_return_t expr
+  | Var ((_, _, t)) -> t
+  | Value (_, t) -> t
   | Call _ -> TAny
   | Body (_, b) -> expr_return_t b
+  | Func (_, _, expr) | Assign (_, expr) | ConstAssign (_, expr) -> expr_return_t expr
 
 let id_type (_id, _value, t) = t
 let id_value (_id, value, _t) = value

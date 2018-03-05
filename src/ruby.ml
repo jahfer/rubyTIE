@@ -10,7 +10,7 @@ open Ast
 module Type_variable = struct
   let current_var = ref (Char.code 'a')
 
-  let gen_new_t () =
+  let gen_fresh_t () =
     let tv = !current_var in
     incr current_var; Ast.TPoly(Core.sprintf "'%c" (Char.chr tv))
 
@@ -24,7 +24,7 @@ let rec typeof = function
   | Bool _ -> TBool
   | Float _ -> TFloat
   | Int _ -> TInt
-  | Array _ -> TArray (Type_variable.gen_new_t ())
+  | Array _ -> TArray (Type_variable.gen_fresh_t ())
   | Nil -> TNil
   | String _ -> TString
   | Symbol _ -> TSymbol
@@ -35,16 +35,16 @@ let rec typeof = function
 module Printer = struct
   let rec output_sig outc = function
     | THash    -> printf "hash"
-    | TArray t -> printf "array<%a>" output_sig t
+    | TArray _ -> printf "array"
     | TString  -> printf "string"
     | TSymbol  -> printf "symbol"
     | TInt     -> printf "int"
     | TFloat   -> printf "float"
-    | TConst t -> printf "const<%a>" output_sig t
+    | TConst _ -> printf "const"
     | TBool    -> Out_channel.output_string outc "bool"
     | TNil     -> Out_channel.output_string outc "nil"
     | TAny     -> printf "any"
-    | TLambda (args, ret)  -> printf "lambda (%a) -> %a" print_args_t args output_sig ret
+    | TLambda (args, ret)  -> printf "block"
     | TCall t -> printf "%a" output_sig t
     | TPoly t  -> printf "%s" t
 
@@ -56,25 +56,23 @@ module Printer = struct
 
   let rec print_value outc = function
     | Hash obj     -> print_hash outc obj
-    | Array l      -> printf "[%a]" print_list l
-    | String s     -> printf "\"%s\"" s
-    | Symbol s     -> printf ":%s" s
-    | Int i        -> printf "%d" i
-    | Float x      -> printf "%f" x
-    | Bool true    -> Out_channel.output_string outc "true"
-    | Bool false   -> Out_channel.output_string outc "false"
-    | Nil          -> Out_channel.output_string outc "nil"
-    | None         -> printf "?"
-    | Lambda _     -> printf "-> { ... }"
+    | Array l      -> printf "(array %a)" print_list l
+    | String s     -> printf "(str \"%s\")" s
+    | Symbol s     -> printf "(sym :%s)" s
+    | Int i        -> printf "(int %d)" i
+    | Float x      -> printf "(float %f)" x
+    | Bool true    -> Out_channel.output_string outc "(true)"
+    | Bool false   -> Out_channel.output_string outc "(false)"
+    | Nil          -> Out_channel.output_string outc "(nil)"
+    | None         -> printf "(?("
+    | Lambda (args, _) -> printf "(lambda) %a (BODY)" print_args args
     | Any          -> printf "?"
 
   and print_hash outc obj =
-    Out_channel.output_string outc "{ ";
-    let sep = ref "" in
+    Out_channel.output_string outc "(hash ";
     List.iter ~f:(fun (key, value) ->
-        printf "%s%a: %a" !sep print_value key print_value value;
-        sep := ",\n  ") obj;
-    Out_channel.output_string outc " }"
+        printf "(pair %a %a)" print_value key print_value value) obj;
+    Out_channel.output_string outc ")"
 
   and print_list outc arr =
     List.iteri ~f:(fun i v ->
@@ -86,19 +84,22 @@ module Printer = struct
     | _ -> printf "%s : %a = %a" id output_sig typ print_value value
 
   and print_args outc arr =
-    List.iteri ~f:(fun i t ->
-        if i > 0 then
-          Out_channel.output_string outc ", ";
-        print_signature outc t) arr
+    Out_channel.output_string outc "(args";
+      List.iteri ~f:(fun i (id, value, typ) ->
+        Out_channel.output_string outc " ";
+        printf "(arg :%s)" id) arr;
+    Out_channel.output_string outc ")"
 
-  let rec print_expr outc = function
+  let rec print_expr_ast outc = function
     | Call (receiver, meth, args) -> begin
       match receiver with
-      | Some(expr) -> printf "(%a).%s (...)" print_expr expr meth
-      | None -> printf "self.%s (...)" meth
+      | Some(expr) -> printf "(send %a :%s)" print_expr_ast expr meth
+      | None -> printf "(send (self) :%s)" meth
     end
-    | Func (name, args, body) -> printf "%s : fun (%a) -> %a" name print_args args print_expr body
-    | Value id -> print_signature outc id
-    | Orphan (value, t) -> printf "%a" print_signature ("(orphan)", value, t)
-    | Body (expr1, expr2) -> print_expr outc expr2
+    | Func (name, args, body) -> printf "(def :%s %a %a)" name print_args args print_expr_ast body
+    | Var (name, value, t) -> printf "(lvar :%s)" name
+    | Assign (name, expr) -> printf "(lvasgn :%s %a)" name print_expr_ast expr
+    | ConstAssign (name, expr) -> printf "(casgn %s %a)" name print_expr_ast expr
+    | Value (value, t) -> printf "%a" print_value value
+    | Body (expr1, expr2) -> printf "%a %a" print_expr_ast expr1 print_expr_ast expr2
 end
