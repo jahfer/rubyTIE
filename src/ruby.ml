@@ -77,7 +77,7 @@ module Printer = struct
   and print_list outc arr =
     List.iteri ~f:(fun i v ->
         if i > 0 then
-          Out_channel.output_string outc ", ";
+          Out_channel.output_string outc " ";
         print_value outc v) arr
 
   and print_signature outc (id, value, typ) = match typ with
