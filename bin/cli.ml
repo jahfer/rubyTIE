@@ -1,5 +1,5 @@
 open Core
-open Lexer
+open Typed_ruby.Lexer
 open Lexing
 
 let print_position outx lexbuf =
@@ -7,7 +7,7 @@ let print_position outx lexbuf =
   fprintf outx "%s:%d:%d" pos.pos_fname
     pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
 
-let state : Lexer.lex_state = {
+let state : Typed_ruby.Lexer.lex_state = {
   pending_termination = false;
   at_eos = false;
   paren_level = 0;
@@ -16,11 +16,11 @@ let state : Lexer.lex_state = {
 }
 
 let parse_with_error lexbuf =
-  try Parser.prog (Lexer.read state) lexbuf with
+  try Typed_ruby.Parser.prog (Typed_ruby.Lexer.read state) lexbuf with
   | SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
     None
-  | Parser.Error ->
+  | Typed_ruby.Parser.Error ->
     let tok = Lexing.lexeme lexbuf in
     fprintf stderr "%a: syntax error ('%s')\n" print_position lexbuf tok;
     exit (-1)
@@ -28,20 +28,37 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) ->
-    printf "%a\n" Ruby.Printer.print_expr_ast expr;
-    Ruby.Type_variable.reset ();
+    printf "%a\n" Typed_ruby.Ruby.Printer.print_expr_ast expr;
+    Typed_ruby.Ruby.Type_variable.reset ();
     parse_and_print lexbuf
   | None -> ()
 
-let loop filename () =
+(* let () =
+  Command.basic ~summary:"Parse and display Ruby"
+    Command.Param.(empty +> anon ("filename" %: file))
+    loop
+  |> Command.run *)
+
+open Cmdliner
+
+let rbt filename =
   let inx = In_channel.create filename in
   let lexbuf = Lexing.from_channel inx in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
   parse_and_print lexbuf;
-  In_channel.close inx
+  In_channel.close inx;
+  `Ok true
+
+let srcs =
+  let doc = "Source file(s) to copy." in
+  Arg.(required & ((pos 0 (some string) None)) & (info [] ~docv:"DEST" ~doc))
+
+let cmd =
+  let doc = "Parse and display Ruby" in
+  let exits = Term.default_exits in
+  Term.(ret (const rbt $ srcs)),
+  Term.info "rbt" ~version:"v1.0.2" ~exits ~doc
 
 let () =
-  Command.basic ~summary:"Parse and display Ruby"
-    Command.Spec.(empty +> anon ("filename" %: file))
-    loop
-  |> Command.run
+  Term.(exit @@ eval cmd)
+

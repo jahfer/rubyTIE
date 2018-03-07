@@ -5,7 +5,7 @@
 %token LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN LAMBEG
 %token COLON COMMA
 %token EOS EOF
-%token <string> ID FID
+%token <string> ID FID IVAR
 %token <string> CONST
 %token EQ DEF END LAMBDA DOT
 
@@ -33,8 +33,10 @@ top_statement_end:
 
 statement:
   | ref = identifier             { Var(ref) }
-  | id = ID EQ v = rhs_assign    { Assign(id, v) }
+  | ref = iv_identifier          { IVar(ref) }
   | c = CONST                    { Var(c, None, TConst (Ruby.Type_variable.gen_fresh_t ())) }
+  | id = ID EQ v = rhs_assign    { Assign(id, v) }
+  | id = IVAR EQ v = rhs_assign  { InstanceVarAssign(id, v) }
   | c = CONST EQ v = rhs_assign  { ConstAssign(c, v) }
   | p = primitive                { Value(p, Ruby.typeof p) }
   | e = expr                     { e }
@@ -70,6 +72,9 @@ command_args:
 
 identifier:
   id = ID { id, Any, Ruby.Type_variable.gen_fresh_t () } ;
+
+iv_identifier:
+  iv = IVAR { iv, Any, Ruby.Type_variable.gen_fresh_t () } ;
 
 func:
   | DEF fn = ID args = fn_args EOS? END {

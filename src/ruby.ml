@@ -97,8 +97,10 @@ module Printer = struct
       | None -> printf "(send (self) :%s)" meth
     end
     | Func (name, args, body) -> printf "(def :%s %a %a)" name print_args args print_expr_ast body
-    | Var (name, value, t) -> printf "(lvar :%s)" name
+    | Var (name, value, t)  -> printf "(lvar :%s)" name
+    | IVar (name, value, t) -> printf "(ivar :%s)" name
     | Assign (name, expr) -> printf "(lvasgn :%s %a)" name print_expr_ast expr
+    | InstanceVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_expr_ast expr
     | ConstAssign (name, expr) -> printf "(casgn %s %a)" name print_expr_ast expr
     | Value (value, t) -> printf "%a" print_value value
     | Body (expr1, expr2) -> printf "%a %a" print_expr_ast expr1 print_expr_ast expr2

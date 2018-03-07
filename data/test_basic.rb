@@ -6,6 +6,8 @@ params = {
 }
 
 @x = :my_symbol
+@x
+
 FooBar = 151.56
 
 stmt1 = 3; stmt2 = 1
