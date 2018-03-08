@@ -1,7 +1,8 @@
 open Core
 open Lexing
+open Lexer
 
-let init_state () : Lexer.lex_state = {
+let init_state () : lex_state = {
   pending_termination = false;
   at_eos = false;
   paren_level = 0;
