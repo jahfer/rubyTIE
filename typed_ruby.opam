@@ -1,0 +1,11 @@
+opam-version: "1.2"
+version: "1.0"
+maintainer: "echo@jahfer.com"
+authors: ["Jahfer Husain"]
+homepage: "https://github.com/jahfer/typed-ruby"
+bug-reports: "https://github.com/jahfer/typed-ruby/issues"
+dev-repo: "https://github.com/jahfer/typed-ruby.git"
+license: "MIT"
+build: [
+  ["jbuilder" "build" "--only" "typed_ruby" "--root" "." "-j" jobs "@install"]
+]

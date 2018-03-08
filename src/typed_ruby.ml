@@ -1,13 +1,8 @@
 open Core
-open Lexer
 open Lexing
+open Lexer
 
-let print_position outx lexbuf =
-  let pos = lexbuf.lex_curr_p in
-  fprintf outx "%s:%d:%d" pos.pos_fname
-    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
-
-let state : Lexer.lex_state = {
+let init_state () : lex_state = {
   pending_termination = false;
   at_eos = false;
   paren_level = 0;
@@ -15,9 +10,16 @@ let state : Lexer.lex_state = {
   fn_call = false;
 }
 
+let state = init_state ()
+
+let print_position outx lexbuf =
+  let pos = lexbuf.lex_curr_p in
+  fprintf outx "%s:%d:%d" pos.pos_fname
+    pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+
 let parse_with_error lexbuf =
   try Parser.prog (Lexer.read state) lexbuf with
-  | SyntaxError msg ->
+  | Lexer.SyntaxError msg ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
     None
   | Parser.Error ->
@@ -28,20 +30,13 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) ->
-    printf "%a\n" Ruby.Printer.print_expr expr;
-    Ruby.Type_variable.reset ();
+    printf "%a\n" Printer.UntypedAst.print_ast expr;
     parse_and_print lexbuf
   | None -> ()
 
-let loop filename () =
+let parse_from_filename filename =
   let inx = In_channel.create filename in
   let lexbuf = Lexing.from_channel inx in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
   parse_and_print lexbuf;
-  In_channel.close inx
-
-let () =
-  Command.basic ~summary:"Parse and display Ruby"
-    Command.Spec.(empty +> anon ("filename" %: file))
-    loop
-  |> Command.run
+  In_channel.close inx;

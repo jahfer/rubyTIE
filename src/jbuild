@@ -1,10 +1,13 @@
 (jbuild_version 1)
 
 (library
- ((name        typed_ruby)
-  (public_name Typed_ruby)
-  (libraries (core))))
-
+  ((name typed_ruby)
+   (public_name typed_ruby)
+   (flags (:standard -warn-error A))
+   (libraries (core))))
 
 (menhir
- ((modules (Parser))))
+ ((flags (--explain))
+  (modules (parser))))
+
+(ocamllex (lexer))

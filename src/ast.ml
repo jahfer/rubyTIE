@@ -23,35 +23,28 @@ and value =
   | Symbol of string
   | Lambda of id list * expr
   | Nil
-  | None
   | Any
 
 and expr =
-  | Call of expr option * string * expr list (* receiver, method, args *)
-  | Func of string * id list * expr (* name, args, body *)
-  | Value of id
-  | Orphan of value * t
-  | Body of expr * expr
+  | ExprCall of expr * string * expr list (* receiver, method, args *)
+  | ExprFunc of string * id list * expr (* name, args, body *)
+  | ExprValue of value
+  | ExprVar of id
+  | ExprConst of id * expr
+  | ExprIVar of id
+  | ExprAssign of string * expr
+  | ExprIVarAssign of string * expr
+  | ExprConstAssign of string * expr
+  | ExprBody of expr * expr
 
-and id = string * value * t
+and id = string * value
 
 let rec expr_return_value = function
-  | Value ((_, value, _)) -> value
-  | Orphan (value, _) -> value
-  | Func (_, _, expr) -> expr_return_value expr
-  | Call _ -> Any
-  | Body (_, b) -> expr_return_value b
-
-let rec expr_return_t = function
-  | Value ((_, _, t)) -> t
-  | Orphan (_, t) -> t
-  | Func (_, _, expr) -> expr_return_t expr
-  | Call _ -> TAny
-  | Body (_, b) -> expr_return_t b
-
-let id_type (_id, _value, t) = t
-let id_value (_id, value, _t) = value
-let arg_types args = List.map id_type args
-let context_type body = match List.rev body with
-| last :: _ -> id_type last
-| _ -> TNil
+  | ExprVar ((_, value)) | ExprIVar ((_, value)) | ExprConst ((_, value), _) -> value
+  | ExprValue (value) -> value
+  | ExprCall _ -> Any
+  | ExprFunc (_, _, expr)
+  | ExprBody (_, expr)
+  | ExprAssign (_, expr)
+  | ExprIVarAssign (_, expr)
+  | ExprConstAssign (_, expr) -> expr_return_value expr

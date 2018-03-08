@@ -46,7 +46,8 @@ let exp = ['e' 'E'] ['-' '+']? digit+
 let float = digit* frac? exp?
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
-let id = ['@']* ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let id =  ['a'-'z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let ivar = ['@'] id
 let const = ['A'-'Z'] ['a'-'z' 'A'-'Z' '_']*
 
 rule read state = parse
@@ -89,6 +90,7 @@ rule read state = parse
   | "nil"    { ack_tok state; NIL }
   | "end"    { ack_tok state; END }
   | const    { ack_tok state; CONST (Lexing.lexeme lexbuf) }
+  | ivar     { terminating_tok state; IVAR (Lexing.lexeme lexbuf) }
   | id       {
     terminating_tok state;
     if state.fn_call then begin

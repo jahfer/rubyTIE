@@ -1,2 +1,6 @@
 true: package(core)
+true: package(cmdliner)
+true: package(stdio)
+true: package(core_kernel)
 true: thread,debug,annot
+"src": include
