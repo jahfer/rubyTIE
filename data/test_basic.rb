@@ -2,13 +2,15 @@ foo
 45
 
 params = {
-  "key": true
+  "key": true,
+  "another": "value"
 }
 
 @x = :my_symbol
 @x
 
 FooBar = 151.56
+FooBar
 
 stmt1 = 3; stmt2 = 1
 
