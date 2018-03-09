@@ -11,9 +11,14 @@
 
 %{
   open Ast
+  open Location
+
+  let with_loc start_pos end_pos expr_desc =
+    let expr_loc = { start_pos; end_pos; } in
+    { expr_loc; expr_desc }
 %}
 
-%start <Ast.expr option> prog
+%start <Ast.core_expression option> prog
 
 %%
 
@@ -32,13 +37,28 @@ top_statement_end:
   statement_end | EOF { };
 
 statement:
-  | ref = identifier             { ExprVar(ref) }
-  | ref = iv_identifier          { ExprIVar(ref) }
-  | c = CONST                    { ExprConst((c, Any), ExprValue(Nil)) }
-  | id = ID EQ v = rhs_assign    { ExprAssign(id, v) }
-  | id = IVAR EQ v = rhs_assign  { ExprIVarAssign(id, v) }
-  | c = CONST EQ v = rhs_assign  { ExprConstAssign(c, v) }
-  | p = primitive                { ExprValue(p) }
+  | ref = identifier             {
+    ExprVar(ref) |> with_loc $symbolstartpos $endpos
+  }
+  | ref = iv_identifier          {
+    ExprIVar(ref) |> with_loc $symbolstartpos $endpos
+  }
+  | c = CONST                    {
+    let sub_expr = ExprValue(Nil) |> with_loc $symbolstartpos $endpos in
+    ExprConst((c, Any), sub_expr) |> with_loc $symbolstartpos $endpos
+  }
+  | id = ID EQ v = rhs_assign    {
+    ExprAssign(id, v) |> with_loc $symbolstartpos $endpos
+  }
+  | id = IVAR EQ v = rhs_assign  {
+    ExprIVarAssign(id, v) |> with_loc $symbolstartpos $endpos
+  }
+  | c = CONST EQ v = rhs_assign  {
+    ExprConstAssign(c, v) |> with_loc $symbolstartpos $endpos
+  }
+  | p = primitive                {
+    ExprValue(p) |> with_loc $symbolstartpos $endpos
+  }
   | e = expr                     { e }
   ;
 
@@ -55,9 +75,18 @@ command_call:
   c = command { c } ;
 
 command:
-  | c = method_call args = command_args                          { ExprCall(ExprValue(Nil), c, args) }
-  | c1 = identifier call_op c2 = method_call                     { ExprCall(ExprVar(c1), c2, []) }
-  | c1 = identifier call_op c2 = method_call args = command_args { ExprCall(ExprVar(c1), c2, args) }
+  | c = method_call args = command_args {
+    let sub_expr = ExprValue(Nil) |> with_loc $symbolstartpos $endpos in
+    ExprCall(sub_expr, c, args) |> with_loc $symbolstartpos $endpos
+  }
+  | c1 = identifier call_op c2 = method_call {
+    let sub_expr = ExprVar(c1) |> with_loc $symbolstartpos $endpos in
+    ExprCall(sub_expr, c2, []) |> with_loc $symbolstartpos $endpos
+  }
+  | c1 = identifier call_op c2 = method_call args = command_args {
+    let sub_expr = ExprVar(c1) |> with_loc $symbolstartpos $endpos in
+    ExprCall(sub_expr, c2, args) |> with_loc $symbolstartpos $endpos
+  }
   ;
 
 call_op: DOT { } ;
@@ -67,7 +96,10 @@ method_call:
 
 command_args:
   | node = command_call { [node] }
-  | args = fn_args { List.map (fun x -> ExprVar(x)) args }
+  | args = fn_args {
+    args |> List.map (fun x ->
+      ExprVar(x) |> with_loc $symbolstartpos $endpos)
+  }
   ;
 
 identifier:
@@ -78,10 +110,11 @@ iv_identifier:
 
 func:
   | DEF fn = ID args = fn_args EOS? END {
-    ExprFunc(fn, args, ExprValue(Nil))
+    let body = ExprValue(Nil) |> with_loc $symbolstartpos $endpos in
+    ExprFunc(fn, args, body) |> with_loc $symbolstartpos $endpos
   }
   | DEF fn = ID args = fn_args EOS? s = statement statement_end? END {
-    ExprFunc(fn, args, s)
+    ExprFunc(fn, args, s) |> with_loc $symbolstartpos $endpos
   }
   ;
 
@@ -107,7 +140,9 @@ lambda_body:
   | LAMBEG s = statement statement_end? RBRACE {
     s
   }
-  | LAMBEG RBRACE { ExprValue(Nil) }
+  | LAMBEG RBRACE {
+    ExprValue(Nil) |> with_loc $symbolstartpos $endpos
+  }
   ;
 
 fn_args:

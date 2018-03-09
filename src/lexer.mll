@@ -14,13 +14,6 @@
     mutable fn_call : bool;
   }
 
-  let next_line lexbuf =
-    let pos = lexbuf.lex_curr_p in
-    lexbuf.lex_curr_p <-
-      { pos with pos_bol = lexbuf.lex_curr_pos;
-                pos_lnum = pos.pos_lnum + 1
-      }
-
   let newline_agnostic_tok state =
     state.pending_termination <- true;
     state.at_eos <- false
@@ -54,9 +47,9 @@ rule read state = parse
   | white    { read state lexbuf }
   | newline  {
       if state.pending_termination || state.at_eos then begin
-        next_line lexbuf; read state lexbuf
+        Lexing.new_line lexbuf; read state lexbuf
       end else begin
-        next_line lexbuf; state.at_eos <- true; EOS
+        Lexing.new_line lexbuf; state.at_eos <- true; EOS
       end
   }
   | "def"    { newline_agnostic_tok state; DEF }

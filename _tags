@@ -4,3 +4,4 @@ true: package(stdio)
 true: package(core_kernel)
 true: thread,debug,annot
 "src": include
+true: use_menhir, infer

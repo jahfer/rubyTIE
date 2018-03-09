@@ -3,17 +3,21 @@ open Ast
 module UntypedAst = struct
   open Core
 
-  let rec print_ast outc = function
-    | ExprCall (receiver, meth, args) -> printf "(send %a :%s)" print_ast receiver meth
-    | ExprFunc (name, args, body) -> printf "(def :%s %a\n  %a)" name print_args args print_ast body
+  let rec print_cexpr outc { expr_loc; expr_desc } =
+    (* printf "%a\n" Location.print_loc expr_loc; *)
+    printf "%a" print_ast expr_desc
+
+  and print_ast outc = function
+    | ExprCall (receiver, meth, args) -> printf "(send %a :%s)" print_cexpr receiver meth
+    | ExprFunc (name, args, body) -> printf "(def :%s %a\n  %a)" name print_args args print_cexpr body
     | ExprVar (name, value)  -> printf "(lvar :%s)" name
-    | ExprConst ((name, value), base) -> printf "(const %a :%s)" print_ast base name
+    | ExprConst ((name, value), base) -> printf "(const %a :%s)" print_cexpr base name
     | ExprIVar (name, value) -> printf "(ivar :%s)" name
-    | ExprAssign (name, expr) -> printf "(lvasgn :%s %a)" name print_ast expr
-    | ExprIVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_ast expr
-    | ExprConstAssign (name, expr) -> printf "(casgn %s %a)" name print_ast expr
+    | ExprAssign (name, expr) -> printf "(lvasgn :%s %a)" name print_cexpr expr
+    | ExprIVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_cexpr expr
+    | ExprConstAssign (name, expr) -> printf "(casgn %s %a)" name print_cexpr expr
     | ExprValue (value) -> printf "%a" print_value value
-    | ExprBody (expr1, expr2) -> printf "%a %a" print_ast expr1 print_ast expr2
+    | ExprBody (expr1, expr2) -> printf "%a %a" print_cexpr expr1 print_cexpr expr2
 
   and print_value outc = function
     | Hash obj     -> print_hash outc obj
@@ -25,7 +29,7 @@ module UntypedAst = struct
     | Bool true    -> Out_channel.output_string outc "(true)"
     | Bool false   -> Out_channel.output_string outc "(false)"
     | Nil          -> Out_channel.output_string outc "(nil)"
-    | Lambda (args, body) -> printf "(block (lambda) %a\n  %a)" print_args args print_ast body
+    | Lambda (args, { expr_desc = body }) -> printf "(block (lambda) %a\n  %a)" print_args args print_ast body
     | Any          -> printf "?"
 
   and print_args outc arr =
