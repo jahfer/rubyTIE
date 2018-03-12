@@ -73,7 +73,7 @@ module Typed_ast = struct
   let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
     (* printf "%a\n" Location.print_loc expr_loc; *)
     let core_expr = { expr_loc; expr_desc } in
-    printf "%10s : %a" (type_to_str expr_type) Untyped_ast.print_cexpr core_expr
+    printf "%14s : %a" (type_to_str expr_type) Untyped_ast.print_cexpr core_expr
 end
 
 (* module TypedAst = struct
