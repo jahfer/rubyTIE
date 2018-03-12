@@ -26,7 +26,10 @@ let gen_fresh_t () =
   let tv = !current_var in
   incr current_var; TPoly(Core.sprintf "'%c" (Char.chr tv))
 
-let typeof_value = function
+let typed_expr ({ expr_loc; expr_desc } : core_expression) expr_type =
+  { expr_loc; expr_desc; expr_type }
+
+let rec typeof_value = function
   | Hash _   -> THash
   | Bool _   -> TBool
   | Float _  -> TFloat
@@ -34,14 +37,11 @@ let typeof_value = function
   | Array _  -> TArray (gen_fresh_t ())
   | String _ -> TString
   | Symbol _ -> TSymbol
-  | Lambda _ -> TLambda ([TAny], gen_fresh_t ())
+  | Lambda (args, body) -> let { expr_type } = eval_types body in TLambda ([TAny], expr_type)
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
-let typed_expr ({ expr_loc; expr_desc } : core_expression) expr_type =
-  { expr_loc; expr_desc; expr_type }
-
-let rec eval_types (({ expr_desc } as core_expr) : core_expression) =
+and eval_types (({ expr_desc } as core_expr) : core_expression) =
   let as_typed_expr = typed_expr core_expr in
   match expr_desc with
   | ExprCall _ -> (* should look up method in table *) gen_fresh_t () |> as_typed_expr
@@ -53,6 +53,9 @@ let rec eval_types (({ expr_desc } as core_expr) : core_expression) =
   | ExprIVarAssign (_, typed_expr)
   | ExprConstAssign (_, typed_expr) ->
     let { expr_type } = eval_types typed_expr in expr_type |> as_typed_expr
-  | _ -> gen_fresh_t () |> as_typed_expr
+  | ExprBody (_, expr) ->
+    let { expr_type } = eval_types expr in expr_type |> as_typed_expr
+  | ExprFunc (_, _, expr) ->
+    let { expr_type } = eval_types expr in expr_type |> as_typed_expr
 
 let eval core_expr = eval_types core_expr
