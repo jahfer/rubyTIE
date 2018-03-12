@@ -18,14 +18,20 @@ type typed_core_expression = {
   expr_desc : expr;
   expr_loc : Location.t;
   expr_type : t;
+  level : int;
 }
 
-let current_var = ref (Char.code 'a')
+let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in
-  incr current_var; TPoly(Core.sprintf "'%c" (Char.chr tv))
+  incr current_var; TPoly(Core.sprintf "v/1%03i" tv)
 
-let rec typeof_value = function
+module AnnotationMap = Map.Make (String)
+let annotations = AnnotationMap.empty
+
+let rec eval core_expr = core_expr |> annotate (* |> constrain_types *)
+
+and typeof_value = function
   | Hash _   -> THash
   | Bool _   -> TBool
   | Float _  -> TFloat
@@ -33,18 +39,38 @@ let rec typeof_value = function
   | Array _  -> TArray (gen_fresh_t ())
   | String _ -> TString
   | Symbol _ -> TSymbol
-  | Lambda (args, body) -> let { expr_type } = eval_types body in TLambda ([TAny], expr_type)
+  | Lambda (args, body) ->
+    let { expr_type } = eval body in TLambda ([TAny], expr_type)
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
-and eval_types ({ expr_loc; expr_desc } : core_expression) =
+and constrain_types { expr_loc; expr_desc; expr_type } =
   let typ = match expr_desc with
     | ExprCall _ -> (* TODO: look up method in table *) gen_fresh_t ()
     | ExprConst ((_, value), _) -> TConst (typeof_value value)
-    | ExprValue (value)    | ExprVar ((_, value)) | ExprIVar ((_, value)) -> typeof_value value
+    | ExprValue (value)    | ExprVar ((_, value))     | ExprIVar ((_, value)) -> typeof_value value
     | ExprAssign (_, expr) | ExprIVarAssign (_, expr) | ExprConstAssign (_, expr)
     | ExprBody (_, expr)   | ExprFunc (_, _, expr) ->
-      let { expr_type } = eval_types expr in expr_type
-  in { expr_loc; expr_desc; expr_type = typ }
+      let { expr_type } = eval expr in expr_type
+  in { expr_loc; expr_desc; expr_type = typ; level = 2 }
 
-let eval core_expr = eval_types core_expr
+and annotate ({ expr_loc; expr_desc } : core_expression) : typed_core_expression =
+  let typ = match expr_desc with
+  | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _)
+  | ExprAssign (name, _) | ExprIVarAssign (name, _) | ExprConstAssign (name, _)
+  | ExprFunc (name, _, _) ->
+    begin match AnnotationMap.find_opt name annotations with
+      | Some(typ) -> typ
+      | None -> gen_fresh_t ()
+    end
+  | ExprCall ({ expr_desc } as receiver, meth, _) ->
+    begin match expr_desc with
+      | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
+      begin match AnnotationMap.find_opt name annotations with
+        | Some(typ) -> typ
+        | None -> gen_fresh_t ()
+      end
+      | _ -> let { expr_type } = annotate receiver in expr_type
+    end
+  | _ -> TAny
+  in { expr_loc; expr_desc; expr_type = typ; level = 1 }
