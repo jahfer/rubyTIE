@@ -30,7 +30,8 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) ->
-    printf "%a\n" Printer.UntypedAst.print_cexpr expr;
+    let typed_ast = Typed_ast.eval (expr) in
+    printf "%a\n" Printer.Typed_ast.print_cexpr typed_ast;
     parse_and_print lexbuf
   | None -> ()
 

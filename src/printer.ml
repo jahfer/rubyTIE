@@ -1,6 +1,5 @@
-open Ast
-
-module UntypedAst = struct
+module Untyped_ast = struct
+  open Ast
   open Core
 
   let rec print_cexpr outc { expr_loc; expr_desc } =
@@ -9,7 +8,7 @@ module UntypedAst = struct
 
   and print_ast outc = function
     | ExprCall (receiver, meth, args) -> printf "(send %a :%s)" print_cexpr receiver meth
-    | ExprFunc (name, args, body) -> printf "(def :%s %a\n  %a)" name print_args args print_cexpr body
+    | ExprFunc (name, args, body) -> printf "(def :%s %a %a)" name print_args args print_cexpr body
     | ExprVar (name, value)  -> printf "(lvar :%s)" name
     | ExprConst ((name, value), base) -> printf "(const %a :%s)" print_cexpr base name
     | ExprIVar (name, value) -> printf "(ivar :%s)" name
@@ -29,7 +28,7 @@ module UntypedAst = struct
     | Bool true    -> Out_channel.output_string outc "(true)"
     | Bool false   -> Out_channel.output_string outc "(false)"
     | Nil          -> Out_channel.output_string outc "(nil)"
-    | Lambda (args, { expr_desc = body }) -> printf "(block (lambda) %a\n  %a)" print_args args print_ast body
+    | Lambda (args, { expr_desc = body }) -> printf "(block (lambda) %a %a)" print_args args print_ast body
     | Any          -> printf "?"
 
   and print_args outc arr =
@@ -52,6 +51,30 @@ module UntypedAst = struct
         print_value outc v) arr
 end
 
+module Typed_ast = struct
+  open Ast
+  open Typed_ast
+  open Core
+
+  let rec type_to_str = function
+    | THash    -> "hash"
+    | TArray t -> sprintf "array<%s>" (type_to_str t)
+    | TString  -> "string"
+    | TSymbol  -> "symbol"
+    | TInt     -> "int"
+    | TFloat   -> "float"
+    | TConst t -> sprintf "const<%s>" (type_to_str t)
+    | TBool    -> "bool"
+    | TNil     -> "nil"
+    | TAny     -> "any"
+    | TLambda (args, ret)  -> sprintf "lambda<%s>" (type_to_str ret)
+    | TPoly t  -> t
+
+  let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
+    (* printf "%a\n" Location.print_loc expr_loc; *)
+    let core_expr = { expr_loc; expr_desc } in
+    printf "%10s : %a" (type_to_str expr_type) Untyped_ast.print_cexpr core_expr
+end
 
 (* module TypedAst = struct
   module Type_variable = struct
@@ -63,21 +86,6 @@ end
 
     let reset () = current_var := (Char.code 'a')
   end
-
-  let rec output_sig outc = function
-    | THash    -> printf "hash"
-    | TArray _ -> printf "array"
-    | TString  -> printf "string"
-    | TSymbol  -> printf "symbol"
-    | TInt     -> printf "int"
-    | TFloat   -> printf "float"
-    | TConst _ -> printf "const"
-    | TBool    -> Out_channel.output_string outc "bool"
-    | TNil     -> Out_channel.output_string outc "nil"
-    | TAny     -> printf "any"
-    | TLambda (args, ret)  -> printf "lambda"
-    | TCall t -> printf "%a" output_sig t
-    | TPoly t  -> printf "%s" t
 
   and print_args_t outc arr =
     List.iteri ~f:(fun i t ->
