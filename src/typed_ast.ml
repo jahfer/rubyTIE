@@ -57,7 +57,15 @@ and constrain_types { expr_loc; expr_desc; expr_type } =
 and annotate ({ expr_loc; expr_desc } : core_expression) =
   let typ = match expr_desc with
   | ExprValue (v) -> gen_fresh_t ()
-  | ExprCall  (_) -> gen_fresh_t () (* TODO: look up method in object table *)
+  | ExprCall  ({ expr_desc }, meth, _args) -> begin match expr_desc with
+    | ExprValue(Nil) -> begin match AnnotationMap.find_opt meth !annotations with
+      | Some(typ) -> typ
+      | None -> let gen_typ = gen_fresh_t () in
+        annotations := AnnotationMap.add meth gen_typ !annotations;
+        gen_typ
+    end
+    | _ -> gen_fresh_t () (* TODO: look up method in object table *)
+    end
   | ExprBody (_, expr) -> let { expr_type } = annotate expr in expr_type
   | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _)
   | ExprAssign (name, _) | ExprIVarAssign (name, _) | ExprConstAssign (name, _)
