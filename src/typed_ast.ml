@@ -1,5 +1,7 @@
 open Ast
 
+(* Define data structures and types for AST *)
+
 type t =
   | THash
   | TBool
@@ -14,6 +16,14 @@ type t =
   | TPoly of string
   | TLambda of t list * t
 
+type constraint_t =
+  | Literal of t
+  | Member of t * string (* TPoly, Member name *)
+  | Equality of t * t
+  | Disjuction of constraint_t list
+  | Overload of t
+  | Class of t
+
 type typed_core_expression = {
   expr_desc : expr;
   expr_loc : Location.t;
@@ -21,38 +31,62 @@ type typed_core_expression = {
   level : int;
 }
 
+(* Build map and generator for unique type names *)
+
 let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in
   incr current_var; TPoly(Core.sprintf "t/1%03i" tv)
 
+(* AST -> TypedAST *)
+
+let name_of_expr = function
+  | _ -> ""
+
+module ConstraintMap = Map.Make (String)
+
+let rec typeof_expr expr =
+  let typeof_value = function
+    | Hash _   -> THash
+    | Bool _   -> TBool
+    | Float _  -> TFloat
+    | Int _    -> TInt
+    | Array _  -> TArray (gen_fresh_t ())
+    | String _ -> TString
+    | Symbol _ -> TSymbol
+    | Lambda (args, { expr_desc }) ->
+      let typ = typeof_expr expr_desc in TLambda ([TAny], typ)
+    | Nil      -> TNil
+    | Any      -> gen_fresh_t ()
+  in expr |> expr_return_value |> typeof_value
+
+let build_constraints { expr_desc; expr_type } =
+  let constraint_map = ConstraintMap.empty in
+  match expr_type with
+  | TPoly tstr -> begin
+    match expr_desc with
+    | ExprAssign _ | ExprIVarAssign _ | ExprConstAssign _ ->
+      let typ = typeof_expr expr_desc in
+      ConstraintMap.add tstr (Literal typ) constraint_map
+    | _ -> constraint_map
+    end
+  | _ -> constraint_map
+
+let apply_constraints ast constraint_map =
+  let _ = constraint_map |> ConstraintMap.iter (fun k v ->
+    match v with
+    | Literal(t) -> Printf.printf "[%s CONSTRAINT: Literal]\n" k
+    | _ -> Printf.printf "[%s CONSTRAINT: Unknown]\n" k
+  )
+  in ast
+
 module AnnotationMap = Map.Make (String)
 let annotations = ref AnnotationMap.empty
 
-let rec eval core_expr = core_expr |> annotate (* |> constrain_types *)
-
-and typeof_value = function
-  | Hash _   -> THash
-  | Bool _   -> TBool
-  | Float _  -> TFloat
-  | Int _    -> TInt
-  | Array _  -> TArray (gen_fresh_t ())
-  | String _ -> TString
-  | Symbol _ -> TSymbol
-  | Lambda (args, body) ->
-    let { expr_type } = eval body in TLambda ([TAny], expr_type)
-  | Nil      -> TNil
-  | Any      -> gen_fresh_t ()
-
-and constrain_types { expr_loc; expr_desc; expr_type } =
-  let typ = match expr_desc with
-    | ExprCall _ -> (* TODO: look up method in table *) gen_fresh_t ()
-    | ExprConst ((_, value), _) -> TConst (typeof_value value)
-    | ExprValue (value)    | ExprVar ((_, value))     | ExprIVar ((_, value)) -> typeof_value value
-    | ExprAssign (_, expr) | ExprIVarAssign (_, expr) | ExprConstAssign (_, expr)
-    | ExprBody (_, expr)   | ExprFunc (_, _, expr) ->
-      let { expr_type } = eval expr in expr_type
-  in { expr_loc; expr_desc; expr_type = typ; level = 2 }
+let rec to_typed_ast core_expr =
+  let annotations = annotate core_expr in
+  let constraints = build_constraints annotations in
+  apply_constraints annotations constraints
 
 and annotate ({ expr_loc; expr_desc } : core_expression) =
   let typ = match expr_desc with

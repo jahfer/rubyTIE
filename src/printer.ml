@@ -68,12 +68,12 @@ module Typed_ast = struct
     | TNil     -> "nil"
     | TAny     -> "any"
     | TLambda (args, ret)  -> sprintf "lambda<%s>" (type_to_str ret)
-    | TPoly t  -> t
+    | TPoly t -> sprintf "%s" t
 
   let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
     (* printf "%a\n" Location.print_loc expr_loc; *)
     let core_expr = { expr_loc; expr_desc } in
-    printf "%*s : %a" 11 (type_to_str expr_type) Untyped_ast.print_cexpr core_expr
+    printf "%*s : %a" 6 (type_to_str expr_type) Untyped_ast.print_cexpr core_expr
 end
 
 (* module TypedAst = struct
