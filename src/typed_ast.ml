@@ -31,19 +31,42 @@ type typed_core_expression = {
   level : int;
 }
 
+module Printer = struct
+  open Core
+
+  let rec type_to_str = function
+    | THash    -> "hash"
+    | TArray t -> sprintf "array<%s>" (type_to_str t)
+    | TString  -> "string"
+    | TSymbol  -> "symbol"
+    | TInt     -> "int"
+    | TFloat   -> "float"
+    | TConst t -> sprintf "const<%s>" (type_to_str t)
+    | TBool    -> "bool"
+    | TNil     -> "nil"
+    | TAny     -> "any"
+    | TLambda (args, ret)  -> sprintf "lambda<(...) -> %s>" (type_to_str ret)
+    | TPoly t -> sprintf "%s" t
+
+  let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
+    (* printf "%a\n" Location.print_loc expr_loc; *)
+    let core_expr = { expr_loc; expr_desc } in
+    printf " %*s : %a" 6 (type_to_str expr_type) Ast.Printer.print_cexpr core_expr
+
+  let print_constraint k v =
+    match v with
+    | Literal (t) -> Printf.printf "\027[31m[%s CONSTRAINT: Literal (%s)]\027[m\n" k (type_to_str t)
+    | Member (receiver, member) ->
+      Printf.printf "\027[31m[%s CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k (type_to_str receiver) member k
+    | _ -> Printf.printf "\027[31m[%s CONSTRAINT: Unknown]\027[m\n" k
+end
+
 (* Build map and generator for unique type names *)
 
 let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in
   incr current_var; TPoly(Core.sprintf "t/1%03i" tv)
-
-(* AST -> TypedAST *)
-
-let name_of_expr = function
-  | _ -> ""
-
-module ConstraintMap = Map.Make (String)
 
 let rec typeof_expr expr =
   let typeof_value = function
@@ -60,6 +83,10 @@ let rec typeof_expr expr =
     | Any      -> gen_fresh_t ()
   in expr |> expr_return_value |> typeof_value
 
+(* AST -> TypedAST *)
+
+module ConstraintMap = Map.Make (String)
+
 let build_constraints { expr_desc; expr_type } =
   let constraint_map = ConstraintMap.empty in
   match expr_type with
@@ -68,15 +95,16 @@ let build_constraints { expr_desc; expr_type } =
     | ExprAssign _ | ExprIVarAssign _ | ExprConstAssign _ ->
       let typ = typeof_expr expr_desc in
       ConstraintMap.add tstr (Literal typ) constraint_map
+    | ExprCall ({ expr_desc }, meth, _args) ->
+      let typ = typeof_expr expr_desc in
+      ConstraintMap.add tstr (Member(typ, meth)) constraint_map
     | _ -> constraint_map
     end
   | _ -> constraint_map
 
 let apply_constraints ast constraint_map =
   let _ = constraint_map |> ConstraintMap.iter (fun k v ->
-    match v with
-    | Literal(t) -> Printf.printf "[%s CONSTRAINT: Literal]\n" k
-    | _ -> Printf.printf "[%s CONSTRAINT: Unknown]\n" k
+   Printer.print_constraint k v
   )
   in ast
 
