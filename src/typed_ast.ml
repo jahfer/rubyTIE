@@ -58,13 +58,13 @@ module Printer = struct
   let print_constraint k v =
     match v with
     | Literal (t) ->
-      Printf.printf "\027[31m[%s CONSTRAINT: Literal (%s)]\027[m\n" k (type_to_str t)
+      Printf.printf "\027[31m[CONSTRAINT: %s is Literal (%s)]\027[m\n" k (type_to_str t)
     | Member (member, return_t) ->
-      Printf.printf "\027[31m[%s CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k k member (type_to_str return_t)
+      Printf.printf "\027[31m[CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k member (type_to_str return_t)
     | Equality (a, b) ->
-      Printf.printf "\027[31m[%s CONSTRAINT: Equality (%s = %s)]\027[m\n" k (type_to_str a) (type_to_str b)
+      Printf.printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b)
     | _ ->
-      Printf.printf "\027[31m[%s CONSTRAINT: Unknown]\027[m\n" k
+      Printf.printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
 end
 
 (* Build map and generator for unique type names *)
@@ -124,13 +124,17 @@ let build_constraints constraint_map { expr_desc; expr_type; level } =
 module AnnotationMap = Map.Make (String)
 let annotations = ref AnnotationMap.empty
 
+let add_annotation name typ map =
+  let typ_name = (Printer.type_to_str typ) in
+  Printf.printf "\027[31m[ANNOTATION: %s = %s]\027[m\n" name typ_name;
+  AnnotationMap.add name typ map
+
 let rec create_annotation name =
   (* Printf.printf "-- Looking up annotion for %s...\n" name; *)
   match AnnotationMap.find_opt name !annotations with
   | Some(typ) -> begin (* Printf.printf "-- Found type %s\n" (Printer.type_to_str typ); *) typ end
   | None -> let gen_typ = gen_fresh_t () in
-    annotations := AnnotationMap.add name gen_typ !annotations;
-    (* Printf.printf "-- Creating type var %s for '%s'\n" (Printer.type_to_str gen_typ) name; *)
+    annotations := add_annotation name gen_typ !annotations;
     gen_typ
 
 and annotate ({ expr_loc; expr_desc } : core_expression) =
@@ -147,7 +151,7 @@ and annotate ({ expr_loc; expr_desc } : core_expression) =
   | ExprAssign (name, expr) | ExprIVarAssign (name, expr) | ExprConstAssign (name, expr) ->
     let { expr_type } = annotate expr in
     (* TODO: this overwrites previous type information *)
-    annotations := AnnotationMap.add name expr_type !annotations;
+    annotations := add_annotation name expr_type !annotations;
     expr_type
   in { expr_loc; expr_desc; expr_type = typ; level = 0 }
 
