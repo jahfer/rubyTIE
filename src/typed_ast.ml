@@ -18,7 +18,7 @@ type t =
 
 type constraint_t =
   | Literal of t
-  | Member of t * string (* TPoly, Member name *)
+  | Member of string * t (* member name, return value *)
   | Equality of t * t
   | Disjuction of constraint_t list
   | Overload of t
@@ -30,6 +30,8 @@ type typed_core_expression = {
   expr_type : t;
   level : int;
 }
+
+(* Printer Utility *)
 
 module Printer = struct
   open Core
@@ -51,14 +53,18 @@ module Printer = struct
   let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
     (* printf "%a\n" Location.print_loc expr_loc; *)
     let core_expr = { expr_loc; expr_desc } in
-    printf " %*s : %a" 6 (type_to_str expr_type) Ast.Printer.print_cexpr core_expr
+    printf "%a\n" Ast.Printer.print_cexpr core_expr
 
   let print_constraint k v =
     match v with
-    | Literal (t) -> Printf.printf "\027[31m[%s CONSTRAINT: Literal (%s)]\027[m\n" k (type_to_str t)
-    | Member (receiver, member) ->
-      Printf.printf "\027[31m[%s CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k (type_to_str receiver) member k
-    | _ -> Printf.printf "\027[31m[%s CONSTRAINT: Unknown]\027[m\n" k
+    | Literal (t) ->
+      Printf.printf "\027[31m[%s CONSTRAINT: Literal (%s)]\027[m\n" k (type_to_str t)
+    | Member (member, return_t) ->
+      Printf.printf "\027[31m[%s CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k k member (type_to_str return_t)
+    | Equality (a, b) ->
+      Printf.printf "\027[31m[%s CONSTRAINT: Equality (%s = %s)]\027[m\n" k (type_to_str a) (type_to_str b)
+    | _ ->
+      Printf.printf "\027[31m[%s CONSTRAINT: Unknown]\027[m\n" k
 end
 
 (* Build map and generator for unique type names *)
@@ -83,59 +89,80 @@ let rec typeof_expr expr =
     | Any      -> gen_fresh_t ()
   in expr |> expr_return_value |> typeof_value
 
-(* AST -> TypedAST *)
+(* Constraint Generation *)
 
 module ConstraintMap = Map.Make (String)
 
-let build_constraints { expr_desc; expr_type } =
-  let constraint_map = ConstraintMap.empty in
-  match expr_type with
-  | TPoly tstr -> begin
-    match expr_desc with
-    | ExprAssign _ | ExprIVarAssign _ | ExprConstAssign _ ->
-      let typ = typeof_expr expr_desc in
-      ConstraintMap.add tstr (Literal typ) constraint_map
+let append_constraint k c map =
+    let lst = match ConstraintMap.find_opt k map with
+    | Some(lst) -> lst
+    | None -> []
+    in map |> ConstraintMap.add k (c :: lst)
+
+let build_constraints constraint_map { expr_desc; expr_type; level } =
+  match (level, expr_type) with
+  | 0, TPoly (tstr) -> begin match expr_desc with
+    | ExprAssign (v, iexpr) | ExprIVarAssign (v, iexpr) | ExprConstAssign (v, iexpr) ->
+      let typ = typeof_expr expr_desc in begin
+      match typ with
+      | TPoly t -> append_constraint t (Equality (typ, expr_type)) constraint_map
+      | TLambda (_, (TPoly(t) as pt)) -> constraint_map
+        (* TODO: Wrong... *)
+        |> append_constraint t (Equality (pt, expr_type))
+        |> append_constraint tstr (Literal typ)
+      | _ -> append_constraint tstr (Literal typ) constraint_map
+      end
     | ExprCall ({ expr_desc }, meth, _args) ->
-      let typ = typeof_expr expr_desc in
-      ConstraintMap.add tstr (Member(typ, meth)) constraint_map
+      let return_typ = typeof_expr expr_desc in
+      constraint_map |> append_constraint tstr (Member(meth, return_typ))
     | _ -> constraint_map
-    end
+  end
   | _ -> constraint_map
 
-let apply_constraints ast constraint_map =
-  let _ = constraint_map |> ConstraintMap.iter (fun k v ->
-   Printer.print_constraint k v
-  )
-  in ast
+(* Annotations *)
 
 module AnnotationMap = Map.Make (String)
 let annotations = ref AnnotationMap.empty
 
-let rec to_typed_ast core_expr =
-  let annotations = annotate core_expr in
-  let constraints = build_constraints annotations in
-  apply_constraints annotations constraints
+let rec create_annotation name =
+  (* Printf.printf "-- Looking up annotion for %s...\n" name; *)
+  match AnnotationMap.find_opt name !annotations with
+  | Some(typ) -> begin (* Printf.printf "-- Found type %s\n" (Printer.type_to_str typ); *) typ end
+  | None -> let gen_typ = gen_fresh_t () in
+    annotations := AnnotationMap.add name gen_typ !annotations;
+    (* Printf.printf "-- Creating type var %s for '%s'\n" (Printer.type_to_str gen_typ) name; *)
+    gen_typ
 
 and annotate ({ expr_loc; expr_desc } : core_expression) =
   let typ = match expr_desc with
   | ExprValue (v) -> gen_fresh_t ()
   | ExprCall  ({ expr_desc }, meth, _args) -> begin match expr_desc with
-    | ExprValue(Nil) -> begin match AnnotationMap.find_opt meth !annotations with
-      | Some(typ) -> typ
-      | None -> let gen_typ = gen_fresh_t () in
-        annotations := AnnotationMap.add meth gen_typ !annotations;
-        gen_typ
-    end
-    | _ -> gen_fresh_t () (* TODO: look up method in object table *)
+    | ExprValue(Nil) -> create_annotation meth
+    | ExprVar(name, _) | ExprIVar(name, _) | ExprConst((name, _), _) -> create_annotation name
+    | _ -> begin Printf.printf "!! UNIMPLEMENTED\n"; gen_fresh_t () (* TODO: look up method in object table *) end
     end
   | ExprBody (_, expr) -> let { expr_type } = annotate expr in expr_type
   | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _)
-  | ExprAssign (name, _) | ExprIVarAssign (name, _) | ExprConstAssign (name, _)
-  | ExprFunc (name, _, _) ->
-    begin match AnnotationMap.find_opt name !annotations with
-      | Some(typ) -> typ
-      | None -> let gen_typ = gen_fresh_t () in
-        annotations := AnnotationMap.add name gen_typ !annotations;
-        gen_typ
-    end
-  in { expr_loc; expr_desc; expr_type = typ; level = 1 }
+  | ExprFunc (name, _, _) -> create_annotation name
+  | ExprAssign (name, expr) | ExprIVarAssign (name, expr) | ExprConstAssign (name, expr) ->
+    let { expr_type } = annotate expr in
+    (* TODO: this overwrites previous type information *)
+    annotations := AnnotationMap.add name expr_type !annotations;
+    expr_type
+  in { expr_loc; expr_desc; expr_type = typ; level = 0 }
+
+(* AST -> TypedAST *)
+
+let apply_constraints ast constraint_map =
+  let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
+    vs |> List.iter (fun v -> Printer.print_constraint k v)
+  )
+  in ast
+
+let rec to_typed_ast core_expr =
+  let constraint_map = ConstraintMap.empty in
+  let annotations = annotate core_expr in
+  let constraints = build_constraints constraint_map annotations in
+  apply_constraints annotations constraints
+
+
