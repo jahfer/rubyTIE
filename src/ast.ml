@@ -6,52 +6,95 @@ type value =
   | Array of value list
   | String of string
   | Symbol of string
-  | Lambda of id list * core_expression
+  | Lambda of id list (** 'a expr*)
   | Nil
   | Any
 
-and expr =
-  | ExprCall of core_expression * string * core_expression list (* receiver, method, args *)
-  | ExprFunc of string * id list * core_expression (* name, args, body *)
+and 'a expr =
+  | ExprCall of 'a expression * string * 'a expression list (* receiver, method, args *)
+  | ExprFunc of string * id list * 'a expression (* name, args, body *)
   | ExprValue of value
   | ExprVar of id
-  | ExprConst of id * core_expression
+  | ExprConst of id * 'a expression
   | ExprIVar of id
-  | ExprAssign of string * core_expression
-  | ExprIVarAssign of string * core_expression
-  | ExprConstAssign of string * core_expression
-  | ExprBody of core_expression * core_expression
+  | ExprAssign of string * 'a expression
+  | ExprIVarAssign of string * 'a expression
+  | ExprConstAssign of string * 'a expression
+  | ExprBody of 'a expression * 'a expression
 
 and id = string * value
 
-and core_expression = {
-  expr_desc : expr;
-  expr_loc : Location.t;
-}
+and 'a expression = 'a expr * 'a
+
+let expr_metadata (_, meta) = meta
+
+(*
+
+expr * loc -> (expr * loc) * loc -> (expr * meta) * loc
+
+ *)
+
+(* let rec coerce (fn : 'b expr -> 'a -> 'b expression) (expr : 'a expr) : 'b expr = match expr with
+  | ExprFunc (name, args, ((body_expr, body_meta) as body)) ->
+    ExprFunc (name, args, (replace_metadata fn (coerce fn body_expr) body_meta))
+  | ExprConst _ ->
+  | ExprAssign _ ->
+  | ExprIVarAssign _ ->
+  | ExprConstAssign _ ->
+  | ExprIVar _ ->
+  | ExprVar _ ->
+  | ExprValue _ ->
+  | ExprCall ->
+  | ExprBody -> *)
+
+let rec replace_metadata (fn : 'b expr -> 'a -> 'b expression) (expr : 'a expr) (meta : 'a) =
+  let new_expr = match expr with
+  | ExprFunc (name, args, (body_expr, body_meta)) ->
+    ExprFunc (name, args, (replace_metadata fn body_expr body_meta))
+  | ExprConst (name, (c_expr, c_meta)) ->
+    ExprConst (name, replace_metadata fn c_expr c_meta)
+  | ExprAssign (name, (a_expr, a_meta)) ->
+    ExprAssign (name, replace_metadata fn a_expr a_meta)
+  | ExprIVarAssign (name, (a_expr, a_meta)) ->
+    ExprIVarAssign (name, replace_metadata fn a_expr a_meta)
+  | ExprConstAssign (name, (a_expr, a_meta))  ->
+    ExprConstAssign (name, replace_metadata fn a_expr a_meta)
+  | ExprIVar name -> ExprIVar name
+  | ExprVar name -> ExprVar name
+  | ExprValue v -> ExprValue v
+  | ExprCall ((expr_a, meta_a), b, args) ->
+    let new_expr = (replace_metadata fn expr_a meta_a)
+    and new_args = List.map (fun (e, m) -> replace_metadata fn e m) args
+    in ExprCall (new_expr, b, new_args)
+  | ExprBody ((expr_a, meta_a), (expr_b, meta_b)) ->
+    let a = (replace_metadata fn expr_a meta_a)
+    and b = (replace_metadata fn expr_b meta_b)
+    in ExprBody (a, b)
+  in fn new_expr meta
 
 let rec expr_return_value = function
   | ExprVar ((_, value)) | ExprIVar ((_, value)) | ExprConst ((_, value), _) -> value
   | ExprValue (value) -> value
   | ExprCall _ -> Any
-  | ExprFunc (_, _, { expr_desc })
-  | ExprBody (_, { expr_desc })
-  | ExprAssign (_, { expr_desc })
-  | ExprIVarAssign (_, { expr_desc })
-  | ExprConstAssign (_, { expr_desc }) -> expr_return_value expr_desc
+  | ExprFunc (_, _, (expr, _))
+  | ExprBody (_, (expr, _))
+  | ExprAssign (_, (expr, _))
+  | ExprIVarAssign (_, (expr, _))
+  | ExprConstAssign (_, (expr, _)) -> expr_return_value expr
 
 module Printer = struct
   open Core
 
-  let rec print_cexpr outc { expr_loc; expr_desc } =
+  let rec print_cexpr outc (expr, _) =
     (* printf "%a\n" Location.print_loc expr_loc; *)
-    printf "%a" print_ast expr_desc
+    printf "%a" print_ast expr
 
   and print_ast outc = function
     | ExprCall (receiver, meth, args) -> printf "(send %a :%s)" print_cexpr receiver meth
     | ExprFunc (name, args, body) -> printf "(def :%s %a %a)" name print_args args print_cexpr body
-    | ExprVar (name, value)  -> printf "(lvar :%s)" name
+    | ExprVar ((name, value))  -> printf "(lvar :%s)" name
     | ExprConst ((name, value), base) -> printf "(const %a :%s)" print_cexpr base name
-    | ExprIVar (name, value) -> printf "(ivar :%s)" name
+    | ExprIVar ((name, value)) -> printf "(ivar :%s)" name
     | ExprAssign (name, expr) -> printf "(lvasgn :%s %a)" name print_cexpr expr
     | ExprIVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_cexpr expr
     | ExprConstAssign (name, expr) -> printf "(casgn %s %a)" name print_cexpr expr
@@ -68,7 +111,7 @@ module Printer = struct
     | Bool true    -> Out_channel.output_string outc "(true)"
     | Bool false   -> Out_channel.output_string outc "(false)"
     | Nil          -> Out_channel.output_string outc "(nil)"
-    | Lambda (args, { expr_desc = body }) -> printf "(block (lambda) %a %a)" print_args args print_ast body
+    | Lambda (args(*, body*)) -> printf "(block (lambda) %a)" print_args args (*print_ast body*)
     | Any          -> printf "?"
 
   and print_args outc arr =

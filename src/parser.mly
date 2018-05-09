@@ -13,12 +13,10 @@
   open Ast
   open Location
 
-  let as_core_expr start_pos end_pos expr_desc =
-    let expr_loc = { start_pos; end_pos; } in
-    { expr_loc; expr_desc }
+  let loc_annot start_pos end_pos expr = (expr, { start_pos; end_pos; })
 %}
 
-%start <Ast.core_expression option> prog
+%start <Location.t Ast.expression option> prog
 
 %%
 
@@ -38,26 +36,26 @@ top_statement_end:
 
 statement:
   | ref = identifier             {
-    ExprVar(ref) |> as_core_expr $symbolstartpos $endpos
+    ExprVar(ref) |> loc_annot $symbolstartpos $endpos
   }
   | ref = iv_identifier          {
-    ExprIVar(ref) |> as_core_expr $symbolstartpos $endpos
+    ExprIVar(ref) |> loc_annot $symbolstartpos $endpos
   }
   | c = CONST                    {
-    let sub_expr = ExprValue(Nil) |> as_core_expr $symbolstartpos $endpos in
-    ExprConst((c, Any), sub_expr) |> as_core_expr $symbolstartpos $endpos
+    let sub_expr = ExprValue(Nil) |> loc_annot $symbolstartpos $endpos in
+    ExprConst((c, Any), sub_expr) |> loc_annot $symbolstartpos $endpos
   }
   | id = ID EQ v = rhs_assign    {
-    ExprAssign(id, v) |> as_core_expr $symbolstartpos $endpos
+    ExprAssign(id, v) |> loc_annot $symbolstartpos $endpos
   }
   | id = IVAR EQ v = rhs_assign  {
-    ExprIVarAssign(id, v) |> as_core_expr $symbolstartpos $endpos
+    ExprIVarAssign(id, v) |> loc_annot $symbolstartpos $endpos
   }
   | c = CONST EQ v = rhs_assign  {
-    ExprConstAssign(c, v) |> as_core_expr $symbolstartpos $endpos
+    ExprConstAssign(c, v) |> loc_annot $symbolstartpos $endpos
   }
   | p = primitive                {
-    ExprValue(p) |> as_core_expr $symbolstartpos $endpos
+    ExprValue(p) |> loc_annot $symbolstartpos $endpos
   }
   | e = expr                     { e }
   ;
@@ -76,20 +74,20 @@ command_call:
 
 command:
   | m = method_call args = command_args {
-    let sub_expr = ExprValue(Nil) |> as_core_expr $symbolstartpos $endpos in
-    ExprCall(sub_expr, m, args)   |> as_core_expr $symbolstartpos $endpos
+    let sub_expr = ExprValue(Nil) |> loc_annot $symbolstartpos $endpos in
+    ExprCall(sub_expr, m, args)   |> loc_annot $symbolstartpos $endpos
   }
   | m = ID args = command_args {
-    let sub_expr = ExprValue(Nil) |> as_core_expr $symbolstartpos $endpos in
-    ExprCall(sub_expr, m, args)   |> as_core_expr $symbolstartpos $endpos
+    let sub_expr = ExprValue(Nil) |> loc_annot $symbolstartpos $endpos in
+    ExprCall(sub_expr, m, args)   |> loc_annot $symbolstartpos $endpos
   }
   | c1 = identifier call_op c2 = method_call {
-    let sub_expr = ExprVar(c1)    |> as_core_expr $symbolstartpos $endpos in
-    ExprCall(sub_expr, c2, [])    |> as_core_expr $symbolstartpos $endpos
+    let sub_expr = ExprVar(c1) |> loc_annot $symbolstartpos $endpos in
+    ExprCall(sub_expr, c2, []) |> loc_annot $symbolstartpos $endpos
   }
   | c1 = identifier call_op c2 = method_call args = command_args {
-    let sub_expr = ExprVar(c1)    |> as_core_expr $symbolstartpos $endpos in
-    ExprCall(sub_expr, c2, args)  |> as_core_expr $symbolstartpos $endpos
+    let sub_expr = ExprVar(c1)   |> loc_annot $symbolstartpos $endpos in
+    ExprCall(sub_expr, c2, args) |> loc_annot $symbolstartpos $endpos
   }
   ;
 
@@ -111,11 +109,11 @@ iv_identifier:
 
 func:
   | DEF fn = ID args = fn_args EOS? END {
-    let body = ExprValue(Nil) |> as_core_expr $symbolstartpos $endpos in
-    ExprFunc(fn, args, body) |> as_core_expr $symbolstartpos $endpos
+    let body = ExprValue(Nil) |> loc_annot $symbolstartpos $endpos in
+    ExprFunc(fn, args, body) |> loc_annot $symbolstartpos $endpos
   }
   | DEF fn = ID args = fn_args EOS? s = statement statement_end? END {
-    ExprFunc(fn, args, s) |> as_core_expr $symbolstartpos $endpos
+    ExprFunc(fn, args, s) |> loc_annot $symbolstartpos $endpos
   }
   ;
 
@@ -133,8 +131,10 @@ primitive:
   ;
 
 lambda:
-  | body = lambda_body                { Lambda ([], body) }
-  | args = fn_args body = lambda_body { Lambda (args, body) }
+  //| body = lambda_body                { Lambda ([], body) }
+  //| args = fn_args body = lambda_body { Lambda (args, body) }
+  | lambda_body                { Lambda ([]) }
+  | args = fn_args lambda_body { Lambda (args) }
   ;
 
 lambda_body:
@@ -142,7 +142,7 @@ lambda_body:
     s
   }
   | LAMBEG RBRACE {
-    ExprValue(Nil) |> as_core_expr $symbolstartpos $endpos
+    ExprValue(Nil) |> loc_annot $symbolstartpos $endpos
   }
   ;
 

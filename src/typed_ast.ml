@@ -15,6 +15,7 @@ type t =
   | TAny
   | TPoly of string
   | TLambda of t list * t
+  | TFunc of t list * t
 
 type constraint_t =
   | Literal of t
@@ -24,8 +25,7 @@ type constraint_t =
   | Overload of t
   | Class of t
 
-type typed_core_expression = {
-  expr_desc : expr;
+type metadata = {
   expr_loc : Location.t;
   expr_type : t;
   level : int;
@@ -47,18 +47,19 @@ module Printer = struct
     | TBool    -> "bool"
     | TNil     -> "nil"
     | TAny     -> "any"
-    | TLambda (args, ret)  -> sprintf "lambda<(...) -> %s>" (type_to_str ret)
+    | TLambda (args, ret) -> sprintf "lambda<(...) -> %s>" (type_to_str ret)
+    | TFunc (args, ret) -> sprintf "func<(...) -> %s>" (type_to_str ret)
     | TPoly t -> sprintf "%s" t
 
-  let rec print_cexpr outc ({ expr_loc; expr_desc; expr_type }) =
+  let rec print_cexpr outc (expr) =
+    let { expr_loc; expr_type; level } = expr_metadata expr in
     (* printf "%a\n" Location.print_loc expr_loc; *)
-    let core_expr = { expr_loc; expr_desc } in
-    printf "%a\n" Ast.Printer.print_cexpr core_expr
+    printf "%s [i%i] : %a\n" (type_to_str expr_type) level Ast.Printer.print_cexpr expr
 
   let print_constraint k v =
     match v with
     | Literal (t) ->
-      Printf.printf "\027[31m[CONSTRAINT: %s is Literal (%s)]\027[m\n" k (type_to_str t)
+      Printf.printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
     | Member (member, return_t) ->
       Printf.printf "\027[31m[CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k member (type_to_str return_t)
     | Equality (a, b) ->
@@ -71,23 +72,24 @@ end
 
 let current_var = ref 1
 let gen_fresh_t () =
-  let tv = !current_var in
-  incr current_var; TPoly(Core.sprintf "t/1%03i" tv)
+  let tv = !current_var in incr current_var;
+  TPoly(Core.sprintf "t/1%03i" tv)
 
-let rec typeof_expr expr =
-  let typeof_value = function
-    | Hash _   -> THash
-    | Bool _   -> TBool
-    | Float _  -> TFloat
-    | Int _    -> TInt
-    | Array _  -> TArray (gen_fresh_t ())
-    | String _ -> TString
-    | Symbol _ -> TSymbol
-    | Lambda (args, { expr_desc }) ->
-      let typ = typeof_expr expr_desc in TLambda ([TAny], typ)
-    | Nil      -> TNil
-    | Any      -> gen_fresh_t ()
-  in expr |> expr_return_value |> typeof_value
+
+let rec typeof_value = function
+  | Hash _   -> THash
+  | Bool _   -> TBool
+  | Float _  -> TFloat
+  | Int _    -> TInt
+  | Array _  -> TArray (gen_fresh_t ())
+  | String _ -> TString
+  | Symbol _ -> TSymbol
+  | Lambda (args(*, expr*)) ->
+    let typ = (*typeof_expr expr*) TAny in TLambda ([TAny], typ)
+  | Nil      -> TNil
+  | Any      -> gen_fresh_t ()
+
+and typeof_expr expr = expr |> expr_return_value |> typeof_value
 
 (* Constraint Generation *)
 
@@ -99,21 +101,21 @@ let append_constraint k c map =
     | None -> []
     in map |> ConstraintMap.add k (c :: lst)
 
-let build_constraints constraint_map { expr_desc; expr_type; level } =
+let build_constraints constraint_map (expr, { expr_type; level }) =
   match (level, expr_type) with
-  | 0, TPoly (tstr) -> begin match expr_desc with
+  | 0, TPoly (tstr) -> begin match expr with
+    | ExprValue(v) -> constraint_map |> append_constraint tstr (Literal (typeof_value v))
     | ExprAssign (v, iexpr) | ExprIVarAssign (v, iexpr) | ExprConstAssign (v, iexpr) ->
-      let typ = typeof_expr expr_desc in begin
+      let typ = typeof_expr expr in begin
       match typ with
       | TPoly t -> append_constraint t (Equality (typ, expr_type)) constraint_map
-      | TLambda (_, (TPoly(t) as pt)) -> constraint_map
-        (* TODO: Wrong... *)
-        |> append_constraint t (Equality (pt, expr_type))
+      | TLambda (_, (TPoly(t) as poly_t)) -> constraint_map
+        |> append_constraint t (Equality (poly_t, expr_type))
         |> append_constraint tstr (Literal typ)
       | _ -> append_constraint tstr (Literal typ) constraint_map
       end
-    | ExprCall ({ expr_desc }, meth, _args) ->
-      let return_typ = typeof_expr expr_desc in
+    | ExprCall ((receiver_expr, _), meth, _args) ->
+      let return_typ = typeof_expr receiver_expr in
       constraint_map |> append_constraint tstr (Member(meth, return_typ))
     | _ -> constraint_map
   end
@@ -126,42 +128,59 @@ let annotations = ref AnnotationMap.empty
 
 let add_annotation name typ map =
   let typ_name = (Printer.type_to_str typ) in
-  Printf.printf "\027[31m[ANNOTATION: %s = %s]\027[m\n" name typ_name;
+  Printf.printf "\027[31m[ANNOTATION: Bind ('%s' = %s)]\027[m\n" name typ_name;
   AnnotationMap.add name typ map
 
 let rec create_annotation name =
-  (* Printf.printf "-- Looking up annotion for %s...\n" name; *)
   match AnnotationMap.find_opt name !annotations with
-  | Some(typ) -> begin (* Printf.printf "-- Found type %s\n" (Printer.type_to_str typ); *) typ end
+  | Some(typ) -> typ
   | None -> let gen_typ = gen_fresh_t () in
     annotations := add_annotation name gen_typ !annotations;
     gen_typ
 
-and annotate ({ expr_loc; expr_desc } : core_expression) =
-  let typ = match expr_desc with
-  | ExprValue (v) -> gen_fresh_t ()
-  | ExprCall  ({ expr_desc }, meth, _args) -> begin match expr_desc with
-    | ExprValue(Nil) -> create_annotation meth
-    | ExprVar(name, _) | ExprIVar(name, _) | ExprConst((name, _), _) -> create_annotation name
-    | _ -> begin Printf.printf "!! UNIMPLEMENTED\n"; gen_fresh_t () (* TODO: look up method in object table *) end
+and annotate (expression : Location.t Ast.expression) =
+  let rec annotate_expression expr location_meta = begin
+    let t = match expr with
+      | ExprValue (v) -> gen_fresh_t ()
+      | _ -> gen_fresh_t ()
+    in ((expr, { expr_loc = location_meta; expr_type = t; level = 0 }) : metadata Ast.expression)
     end
-  | ExprBody (_, expr) -> let { expr_type } = annotate expr in expr_type
-  | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _)
-  | ExprFunc (name, _, _) -> create_annotation name
+  in let (expr, location_meta) = expression in
+  replace_metadata annotate_expression expr location_meta
+
+  (* let typ = match expr with
+  | ExprValue (v) -> gen_fresh_t ()
+  | ExprCall  ((expr, _), meth, _args) -> begin match expr with
+    | ExprVar(name, _) | ExprIVar(name, _) | ExprConst((name, _), _) ->
+      let key = String.concat "#" [name; meth] in
+      create_annotation key
+    | ExprValue(Nil) | _ -> (*create_annotation meth*) begin
+      match AnnotationMap.find_opt meth !annotations with
+      | Some(TFunc(_, return_t)) -> return_t
+      | Some(t) -> t
+      | None -> create_annotation meth
+      end
+    end
+  | ExprBody (_, (expr, _)) -> let { expr_type } = expr_metadata (annotate expr) in expr_type
+  | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) -> create_annotation name
+  | ExprFunc (name, args, body) ->
+    let { expr_type } = expr_metadata (annotate body) in
+    let t = TFunc([TAny], expr_type) in
+    annotations := add_annotation name t !annotations;
+    t
   | ExprAssign (name, expr) | ExprIVarAssign (name, expr) | ExprConstAssign (name, expr) ->
-    let { expr_type } = annotate expr in
+    let { expr_type } = expr_metadata (annotate expr) in
     (* TODO: this overwrites previous type information *)
     annotations := add_annotation name expr_type !annotations;
     expr_type
-  in { expr_loc; expr_desc; expr_type = typ; level = 0 }
+  in (expr, { expr_loc = meta; expr_type = typ; level = 0 }) *)
 
 (* AST -> TypedAST *)
 
 let apply_constraints ast constraint_map =
   let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
     vs |> List.iter (fun v -> Printer.print_constraint k v)
-  )
-  in ast
+  ) in ast
 
 let rec to_typed_ast core_expr =
   let constraint_map = ConstraintMap.empty in
