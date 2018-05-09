@@ -23,52 +23,26 @@ and 'a expr =
   | ExprBody of 'a expression * 'a expression
 
 and id = string * value
-
 and 'a expression = 'a expr * 'a
 
-let expr_metadata (_, meta) = meta
-
-(*
-
-expr * loc -> (expr * loc) * loc -> (expr * meta) * loc
-
- *)
-
-(* let rec coerce (fn : 'b expr -> 'a -> 'b expression) (expr : 'a expr) : 'b expr = match expr with
-  | ExprFunc (name, args, ((body_expr, body_meta) as body)) ->
-    ExprFunc (name, args, (replace_metadata fn (coerce fn body_expr) body_meta))
-  | ExprConst _ ->
-  | ExprAssign _ ->
-  | ExprIVarAssign _ ->
-  | ExprConstAssign _ ->
-  | ExprIVar _ ->
-  | ExprVar _ ->
-  | ExprValue _ ->
-  | ExprCall ->
-  | ExprBody -> *)
-
-let rec replace_metadata (fn : 'b expr -> 'a -> 'b expression) (expr : 'a expr) (meta : 'a) =
+let rec replace_metadata fn expr meta =
+  let swap_meta = replace_metadata fn in
   let new_expr = match expr with
-  | ExprFunc (name, args, (body_expr, body_meta)) ->
-    ExprFunc (name, args, (replace_metadata fn body_expr body_meta))
-  | ExprConst (name, (c_expr, c_meta)) ->
-    ExprConst (name, replace_metadata fn c_expr c_meta)
-  | ExprAssign (name, (a_expr, a_meta)) ->
-    ExprAssign (name, replace_metadata fn a_expr a_meta)
-  | ExprIVarAssign (name, (a_expr, a_meta)) ->
-    ExprIVarAssign (name, replace_metadata fn a_expr a_meta)
-  | ExprConstAssign (name, (a_expr, a_meta))  ->
-    ExprConstAssign (name, replace_metadata fn a_expr a_meta)
+  | ExprFunc (name, args, (body_expr, body_meta)) -> ExprFunc (name, args, swap_meta body_expr body_meta)
+  | ExprConst (name, (c_expr, c_meta)) -> ExprConst (name, swap_meta c_expr c_meta)
+  | ExprAssign (name, (a_expr, a_meta)) -> ExprAssign (name, swap_meta a_expr a_meta)
+  | ExprIVarAssign (name, (a_expr, a_meta)) -> ExprIVarAssign (name, swap_meta a_expr a_meta)
+  | ExprConstAssign (name, (a_expr, a_meta))  -> ExprConstAssign (name, swap_meta a_expr a_meta)
   | ExprIVar name -> ExprIVar name
   | ExprVar name -> ExprVar name
   | ExprValue v -> ExprValue v
   | ExprCall ((expr_a, meta_a), b, args) ->
-    let new_expr = (replace_metadata fn expr_a meta_a)
-    and new_args = List.map (fun (e, m) -> replace_metadata fn e m) args
+    let new_expr = swap_meta expr_a meta_a
+    and new_args = List.map (fun (e, m) -> swap_meta e m) args
     in ExprCall (new_expr, b, new_args)
   | ExprBody ((expr_a, meta_a), (expr_b, meta_b)) ->
-    let a = (replace_metadata fn expr_a meta_a)
-    and b = (replace_metadata fn expr_b meta_b)
+    let a = swap_meta expr_a meta_a
+    and b = swap_meta expr_b meta_b
     in ExprBody (a, b)
   in fn new_expr meta
 
@@ -90,12 +64,12 @@ module Printer = struct
     printf "%a" print_ast expr
 
   and print_ast outc = function
-    | ExprCall (receiver, meth, args) -> printf "(send %a :%s)" print_cexpr receiver meth
-    | ExprFunc (name, args, body) -> printf "(def :%s %a %a)" name print_args args print_cexpr body
-    | ExprVar ((name, value))  -> printf "(lvar :%s)" name
-    | ExprConst ((name, value), base) -> printf "(const %a :%s)" print_cexpr base name
-    | ExprIVar ((name, value)) -> printf "(ivar :%s)" name
-    | ExprAssign (name, expr) -> printf "(lvasgn :%s %a)" name print_cexpr expr
+    | ExprCall (receiver, meth, args) -> printf "(send %a `%s)" print_cexpr receiver meth
+    | ExprFunc (name, args, body) -> printf "(def `%s %a %a)" name print_args args print_cexpr body
+    | ExprVar ((name, value))  -> printf "(lvar `%s)" name
+    | ExprConst ((name, value), base) -> printf "(const %a `%s)" print_cexpr base name
+    | ExprIVar ((name, value)) -> printf "(ivar `%s)" name
+    | ExprAssign (name, expr) -> printf "(lvasgn `%s %a)" name print_cexpr expr
     | ExprIVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_cexpr expr
     | ExprConstAssign (name, expr) -> printf "(casgn %s %a)" name print_cexpr expr
     | ExprValue (value) -> printf "%a" print_value value
@@ -105,7 +79,7 @@ module Printer = struct
     | Hash obj     -> print_hash outc obj
     | Array l      -> printf "(array %a)" print_list l
     | String s     -> printf "(str \"%s\")" s
-    | Symbol s     -> printf "(sym :%s)" s
+    | Symbol s     -> printf "(sym `%s)" s
     | Int i        -> printf "(int %d)" i
     | Float x      -> printf "(float %f)" x
     | Bool true    -> Out_channel.output_string outc "(true)"
@@ -118,7 +92,7 @@ module Printer = struct
     Out_channel.output_string outc "(args";
       List.iteri ~f:(fun i (id, value) ->
         Out_channel.output_string outc " ";
-        printf "(arg :%s)" id) arr;
+        printf "(arg `%s)" id) arr;
     Out_channel.output_string outc ")"
 
   and print_hash outc obj =

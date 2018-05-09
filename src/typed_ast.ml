@@ -51,10 +51,22 @@ module Printer = struct
     | TFunc (args, ret) -> sprintf "func<(...) -> %s>" (type_to_str ret)
     | TPoly t -> sprintf "%s" t
 
-  let rec print_cexpr outc (expr) =
-    let { expr_loc; expr_type; level } = expr_metadata expr in
+  let rec print_typed_expr outc = function
+    | ExprCall (receiver, meth, args) -> printf "send %a `%s" print_expression receiver meth
+    | ExprFunc (name, args, body) -> printf "def `%s %a %a" name Ast.Printer.print_args args print_expression body
+    | ExprVar ((name, value))  -> printf "lvar `%s" name
+    | ExprConst ((name, value), base) -> printf "const %a `%s" print_expression base name
+    | ExprIVar ((name, value)) -> printf "ivar `%s" name
+    | ExprAssign (name, expr) -> printf "lvasgn `%s %a" name print_expression expr
+    | ExprIVarAssign (name, expr) -> printf "ivasgn %s %a" name print_expression expr
+    | ExprConstAssign (name, expr) -> printf "casgn %s %a" name print_expression expr
+    | ExprValue (value) -> printf "%a" Ast.Printer.print_value value
+    | ExprBody (expr1, expr2) -> printf "%a %a" print_expression expr1 print_expression expr2
+
+  and print_expression outc (expr, metadata) =
+    let { expr_loc; expr_type; level } = metadata in
     (* printf "%a\n" Location.print_loc expr_loc; *)
-    printf "%s [i%i] : %a\n" (type_to_str expr_type) level Ast.Printer.print_cexpr expr
+    printf "(%s : %a)" (type_to_str expr_type) print_typed_expr expr
 
   let print_constraint k v =
     match v with
@@ -74,7 +86,6 @@ let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in incr current_var;
   TPoly(Core.sprintf "t/1%03i" tv)
-
 
 let rec typeof_value = function
   | Hash _   -> THash
@@ -138,13 +149,10 @@ let rec create_annotation name =
     annotations := add_annotation name gen_typ !annotations;
     gen_typ
 
-and annotate (expression : Location.t Ast.expression) =
-  let rec annotate_expression expr location_meta = begin
-    let t = match expr with
-      | ExprValue (v) -> gen_fresh_t ()
-      | _ -> gen_fresh_t ()
-    in ((expr, { expr_loc = location_meta; expr_type = t; level = 0 }) : metadata Ast.expression)
-    end
+and annotate expression =
+  let rec annotate_expression expr location_meta =
+    let t = gen_fresh_t ()
+    in (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 

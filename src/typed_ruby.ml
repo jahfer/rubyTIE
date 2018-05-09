@@ -31,7 +31,7 @@ let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) -> let open Typed_ast in
     let typed_ast = to_typed_ast (expr) in
-    printf "%a\n" Printer.print_cexpr typed_ast;
+    printf "%a\n" Printer.print_expression typed_ast;
     parse_and_print lexbuf
   | None -> ()
 
