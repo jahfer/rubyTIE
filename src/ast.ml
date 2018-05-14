@@ -28,11 +28,16 @@ and 'a expression = 'a expr * 'a
 let rec replace_metadata fn expr meta =
   let swap_meta = replace_metadata fn in
   let new_expr = match expr with
-  | ExprFunc (name, args, (body_expr, body_meta)) -> ExprFunc (name, args, swap_meta body_expr body_meta)
-  | ExprConst (name, (c_expr, c_meta)) -> ExprConst (name, swap_meta c_expr c_meta)
-  | ExprAssign (name, (a_expr, a_meta)) -> ExprAssign (name, swap_meta a_expr a_meta)
-  | ExprIVarAssign (name, (a_expr, a_meta)) -> ExprIVarAssign (name, swap_meta a_expr a_meta)
-  | ExprConstAssign (name, (a_expr, a_meta))  -> ExprConstAssign (name, swap_meta a_expr a_meta)
+  | ExprFunc (name, args, (body_expr, body_meta)) ->
+    ExprFunc (name, args, swap_meta body_expr body_meta)
+  | ExprConst (name, (c_expr, c_meta)) ->
+    ExprConst (name, swap_meta c_expr c_meta)
+  | ExprAssign (name, (a_expr, a_meta)) ->
+    ExprAssign (name, swap_meta a_expr a_meta)
+  | ExprIVarAssign (name, (a_expr, a_meta)) ->
+    ExprIVarAssign (name, swap_meta a_expr a_meta)
+  | ExprConstAssign (name, (a_expr, a_meta)) ->
+    ExprConstAssign (name, swap_meta a_expr a_meta)
   | ExprIVar name -> ExprIVar name
   | ExprVar name -> ExprVar name
   | ExprValue v -> ExprValue v
@@ -47,9 +52,11 @@ let rec replace_metadata fn expr meta =
   in fn new_expr meta
 
 let rec expr_return_value = function
-  | ExprVar ((_, value)) | ExprIVar ((_, value)) | ExprConst ((_, value), _) -> value
-  | ExprValue (value) -> value
   | ExprCall _ -> Any
+  | ExprVar ((_, value))
+  | ExprIVar ((_, value))
+  | ExprConst ((_, value), _)
+  | ExprValue (value) -> value
   | ExprFunc (_, _, (expr, _))
   | ExprBody (_, (expr, _))
   | ExprAssign (_, (expr, _))
@@ -64,16 +71,26 @@ module Printer = struct
     printf "%a" print_ast expr
 
   and print_ast outc = function
-    | ExprCall (receiver, meth, args) -> printf "(send %a `%s)" print_cexpr receiver meth
-    | ExprFunc (name, args, body) -> printf "(def `%s %a %a)" name print_args args print_cexpr body
-    | ExprVar ((name, value))  -> printf "(lvar `%s)" name
-    | ExprConst ((name, value), base) -> printf "(const %a `%s)" print_cexpr base name
-    | ExprIVar ((name, value)) -> printf "(ivar `%s)" name
-    | ExprAssign (name, expr) -> printf "(lvasgn `%s %a)" name print_cexpr expr
-    | ExprIVarAssign (name, expr) -> printf "(ivasgn %s %a)" name print_cexpr expr
-    | ExprConstAssign (name, expr) -> printf "(casgn %s %a)" name print_cexpr expr
-    | ExprValue (value) -> printf "%a" print_value value
-    | ExprBody (expr1, expr2) -> printf "%a %a" print_cexpr expr1 print_cexpr expr2
+    | ExprCall (receiver, meth, args) ->
+      printf "(send %a `%s)" print_cexpr receiver meth
+    | ExprFunc (name, args, body) ->
+      printf "(def `%s %a %a)" name print_args args print_cexpr body
+    | ExprVar ((name, value))  ->
+      printf "(lvar `%s)" name
+    | ExprConst ((name, value), base) ->
+      printf "(const %a `%s)" print_cexpr base name
+    | ExprIVar ((name, value)) ->
+      printf "(ivar `%s)" name
+    | ExprAssign (name, expr) ->
+      printf "(lvasgn `%s %a)" name print_cexpr expr
+    | ExprIVarAssign (name, expr) ->
+      printf "(ivasgn %s %a)" name print_cexpr expr
+    | ExprConstAssign (name, expr) ->
+      printf "(casgn %s %a)" name print_cexpr expr
+    | ExprValue (value) ->
+      printf "%a" print_value value
+    | ExprBody (expr1, expr2) ->
+      printf "%a %a" print_cexpr expr1 print_cexpr expr2
 
   and print_value outc = function
     | Hash obj     -> print_hash outc obj
