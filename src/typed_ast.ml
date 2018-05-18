@@ -61,6 +61,8 @@ module Printer = struct
       printf "send %a `%s" print_expression receiver meth
     | ExprFunc (name, args, body) ->
       printf "def `%s %a %a" name Ast.Printer.print_args args print_expression body
+    | ExprLambda (args, body) ->
+      printf "lambda %a %a" Ast.Printer.print_args args print_expression body
     | ExprVar ((name, value))  ->
       printf "lvar `%s" name
     | ExprConst ((name, value), base) ->
@@ -75,7 +77,7 @@ module Printer = struct
       printf "casgn %s %a" name print_expression expr
     | ExprValue (value) ->
       printf "%a" Ast.Printer.print_value value
-    | ExprBody (expr1, expr2) ->
+    | ExprBlock (expr1, expr2) ->
       printf "%a %a" print_expression expr1 print_expression expr2
 
   and print_expression outc (expr, metadata) =
@@ -110,8 +112,6 @@ let rec typeof_value = function
   | Array _  -> TArray (gen_fresh_t ())
   | String _ -> TString
   | Symbol _ -> TSymbol
-  (* TODO: Lambda *)
-  | Lambda (args) -> TLambda ([TAny], TAny)
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
@@ -122,10 +122,10 @@ and typeof_expr expr = expr |> expr_return_value |> typeof_value
 module ConstraintMap = Map.Make (String)
 
 let append_constraint k c map =
-    let lst = match ConstraintMap.find_opt k map with
-    | Some(lst) -> lst
-    | None -> []
-    in map |> ConstraintMap.add k (c :: lst)
+  let lst = match ConstraintMap.find_opt k map with
+  | Some(lst) -> lst
+  | None -> []
+  in map |> ConstraintMap.add k (c :: lst)
 
 let build_constraints constraint_map (expr, { expr_type; level }) =
   let build_constraint type_key = function
@@ -147,8 +147,7 @@ let build_constraints constraint_map (expr, { expr_type; level }) =
     end
   | ExprCall ((receiver_expr, _), meth, _args) ->
     let return_typ = typeof_expr receiver_expr in
-    constraint_map
-    |> append_constraint type_key (Member(meth, return_typ))
+    constraint_map|> append_constraint type_key (Member(meth, return_typ))
   | _ -> constraint_map
   in match (level, expr_type) with
   | 0, TPoly (type_key) -> build_constraint type_key expr

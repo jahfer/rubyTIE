@@ -39,3 +39,7 @@ b = 3
 a = b
 
 sum1(5)
+
+-> (local, _x) {
+  local.first()
+}

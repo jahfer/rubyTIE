@@ -66,6 +66,7 @@ rhs_assign:
 
 expr:
   | c = command_call { c }
+  | LAMBDA l = lambda { l }
   | f = func     { f }
   ;
 
@@ -127,14 +128,15 @@ primitive:
   | TRUE                           { Bool true }
   | FALSE                          { Bool false }
   | NIL                            { Nil }
-  | LAMBDA l = lambda              { l }
   ;
 
 lambda:
-  //| body = lambda_body                { Lambda ([], body) }
-  //| args = fn_args body = lambda_body { Lambda (args, body) }
-  | lambda_body                { Lambda ([]) }
-  | args = fn_args lambda_body { Lambda (args) }
+  | body = lambda_body {
+    ExprLambda ([], body)   |> loc_annot $symbolstartpos $endpos
+  }
+  | args = fn_args body = lambda_body {
+    ExprLambda (args, body) |> loc_annot $symbolstartpos $endpos
+  }
   ;
 
 lambda_body:
