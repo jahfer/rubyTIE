@@ -28,7 +28,7 @@ y = [1,2,3]
 y.first
 z = y.first
 
-func1 = -> { 45 }
+func1 = -> { x = 45 }
 func2 = -> (local) { }
 func3 = -> (local, _x) {
   local.first()

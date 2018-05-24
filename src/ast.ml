@@ -28,43 +28,30 @@ and 'a expression = 'a expr * 'a
 let rec replace_metadata fn expr meta =
   let swap_meta = replace_metadata fn in
   let new_expr = match expr with
-  | ExprFunc (name, args, (body_expr, body_meta)) ->
-    ExprFunc (name, args, swap_meta body_expr body_meta)
-  | ExprLambda (args, (body_expr, body_meta)) ->
-    ExprLambda (args, swap_meta body_expr body_meta)
-  | ExprConst (name, (c_expr, c_meta)) ->
-    ExprConst (name, swap_meta c_expr c_meta)
-  | ExprAssign (name, (a_expr, a_meta)) ->
-    ExprAssign (name, swap_meta a_expr a_meta)
-  | ExprIVarAssign (name, (a_expr, a_meta)) ->
-    ExprIVarAssign (name, swap_meta a_expr a_meta)
-  | ExprConstAssign (name, (a_expr, a_meta)) ->
-    ExprConstAssign (name, swap_meta a_expr a_meta)
-  | ExprIVar name -> ExprIVar name
-  | ExprVar name -> ExprVar name
-  | ExprValue v -> ExprValue v
-  | ExprCall ((expr_a, meta_a), b, args) ->
-    let new_expr = swap_meta expr_a meta_a
-    and new_args = List.map (fun (e, m) -> swap_meta e m) args
-    in ExprCall (new_expr, b, new_args)
-  | ExprBlock ((expr_a, meta_a), (expr_b, meta_b)) ->
-    let a = swap_meta expr_a meta_a
-    and b = swap_meta expr_b meta_b
-    in ExprBlock (a, b)
+    | ExprFunc (name, args, (body_expr, body_meta)) ->
+      ExprFunc (name, args, swap_meta body_expr body_meta)
+    | ExprLambda (args, (body_expr, body_meta)) ->
+      ExprLambda (args, swap_meta body_expr body_meta)
+    | ExprConst (name, (c_expr, c_meta)) ->
+      ExprConst (name, swap_meta c_expr c_meta)
+    | ExprAssign (name, (a_expr, a_meta)) ->
+      ExprAssign (name, swap_meta a_expr a_meta)
+    | ExprIVarAssign (name, (a_expr, a_meta)) ->
+      ExprIVarAssign (name, swap_meta a_expr a_meta)
+    | ExprConstAssign (name, (a_expr, a_meta)) ->
+      ExprConstAssign (name, swap_meta a_expr a_meta)
+    | ExprIVar name -> ExprIVar name
+    | ExprVar name -> ExprVar name
+    | ExprValue v -> ExprValue v
+    | ExprCall ((expr_a, meta_a), b, args) ->
+      let new_expr = swap_meta expr_a meta_a
+      and new_args = List.map (fun (e, m) -> swap_meta e m) args
+      in ExprCall (new_expr, b, new_args)
+    | ExprBlock ((expr_a, meta_a), (expr_b, meta_b)) ->
+      let a = swap_meta expr_a meta_a
+      and b = swap_meta expr_b meta_b
+      in ExprBlock (a, b)
   in fn new_expr meta
-
-let rec expr_return_value = function
-  | ExprCall _ -> Any
-  | ExprVar ((_, value))
-  | ExprIVar ((_, value))
-  | ExprConst ((_, value), _)
-  | ExprValue (value) -> value
-  | ExprFunc (_, _, (expr, _))
-  | ExprLambda (_, (expr, _))
-  | ExprBlock (_, (expr, _))
-  | ExprAssign (_, (expr, _))
-  | ExprIVarAssign (_, (expr, _))
-  | ExprConstAssign (_, (expr, _)) -> expr_return_value expr
 
 module Printer = struct
   open Core
@@ -112,7 +99,7 @@ module Printer = struct
   and print_args outc arr =
     if List.length(arr) > 0 then begin
       Out_channel.output_string outc "(args";
-        List.iteri ~f:(fun i (id, value) ->
+      List.iteri ~f:(fun i (id, value) ->
           Out_channel.output_string outc " ";
           printf "(arg `%s)" id) arr;
       Out_channel.output_string outc ")"

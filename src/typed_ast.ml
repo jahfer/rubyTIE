@@ -102,6 +102,7 @@ end
 let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in incr current_var;
+  Printf.printf "-- Creating new type var t/1%03i\n" tv;
   TPoly(Core.sprintf "t/1%03i" tv)
 
 let rec typeof_value = function
@@ -115,7 +116,19 @@ let rec typeof_value = function
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
-and typeof_expr expr = expr |> expr_return_value |> typeof_value
+let rec typeof_expr = function
+  | ExprVar ((_, value))
+  | ExprIVar ((_, value))
+  | ExprConst ((_, value), _)
+  | ExprValue (value) -> typeof_value value
+  | ExprFunc (_, _, (_, metadata))
+  | ExprLambda (_, (_, metadata))
+  | ExprBlock (_, (_, metadata))
+  | ExprAssign (_, (_, metadata))
+  | ExprIVarAssign (_, (_, metadata))
+  | ExprCall ((_, metadata), _, _)
+  | ExprConstAssign (_, (_, metadata)) ->
+    let { expr_type } = metadata in expr_type
 
 (* Constraint Generation *)
 
@@ -123,32 +136,35 @@ module ConstraintMap = Map.Make (String)
 
 let append_constraint k c map =
   let lst = match ConstraintMap.find_opt k map with
-  | Some(lst) -> lst
-  | None -> []
+    | Some(lst) -> lst
+    | None -> []
   in map |> ConstraintMap.add k (c :: lst)
 
-let build_constraints constraint_map (expr, { expr_type; level }) =
+let rec build_constraints constraint_map (expr, { expr_type; level }) =
   let build_constraint type_key = function
-  | ExprValue(v) -> 
-    constraint_map
-    |> append_constraint type_key (Literal (typeof_value v))
-  | ExprAssign (v, iexpr)
-  | ExprIVarAssign (v, iexpr)
-  | ExprConstAssign (v, iexpr) ->
-    let typ = typeof_expr expr in begin
-    match typ with
-    | TPoly t ->
-      append_constraint t (Equality (typ, expr_type)) constraint_map
-    | TLambda (_, (TPoly(t) as poly_t)) ->
+    | ExprValue(v) -> 
       constraint_map
-      |> append_constraint t (Equality (poly_t, expr_type))
-      |> append_constraint type_key (Literal typ)
-    | _ -> append_constraint type_key (Literal typ) constraint_map
-    end
-  | ExprCall ((receiver_expr, _), meth, _args) ->
-    let return_typ = typeof_expr receiver_expr in
-    constraint_map|> append_constraint type_key (Member(meth, return_typ))
-  | _ -> constraint_map
+      |> append_constraint type_key (Literal (typeof_value v))
+    | ExprAssign (v, iexpr)
+    | ExprIVarAssign (v, iexpr)
+    | ExprConstAssign (v, iexpr) ->
+      let constraint_map = build_constraints constraint_map iexpr in
+      let typ = typeof_expr expr in begin match typ with
+        | TPoly t ->
+          append_constraint t (Equality (typ, expr_type)) constraint_map
+        | TLambda (_, (TPoly(t) as poly_t)) ->
+          constraint_map
+          |> append_constraint t (Equality (poly_t, expr_type))
+          |> append_constraint type_key (Literal typ)
+        | _ -> append_constraint type_key (Literal typ) constraint_map
+      end
+    | ExprCall (receiver_expression, meth, _args) ->
+      let constraint_map = build_constraints constraint_map receiver_expression in
+      let receiver_expr = fst(receiver_expression) in
+      let return_typ = typeof_expr receiver_expr in
+      constraint_map|> append_constraint type_key (Member(meth, return_typ))
+    | ExprLambda (_, expression) -> build_constraints constraint_map expression
+    | _ -> constraint_map
   in match (level, expr_type) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
   | _ -> constraint_map
@@ -181,8 +197,8 @@ and annotate expression =
 
 let apply_constraints ast constraint_map =
   let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
-    vs |> List.iter (fun v -> Printer.print_constraint k v)
-  ) in ast
+      vs |> List.iter (fun v -> Printer.print_constraint k v)
+    ) in ast
 
 let rec to_typed_ast core_expr =
   let constraint_map = ConstraintMap.empty in
