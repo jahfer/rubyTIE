@@ -56,34 +56,36 @@ module Printer = struct
     | TPoly t ->
       sprintf "%s" t
 
-  let rec print_typed_expr outc = function
+  let rec print_typed_expr ~indent outc = function
     | ExprCall (receiver, meth, args) ->
-      printf "send %a `%s" print_expression receiver meth
+      printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth
     | ExprFunc (name, args, body) ->
-      printf "def `%s %a %a" name Ast.Printer.print_args args print_expression body
+      printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
     | ExprLambda (args, body) ->
-      printf "lambda %a %a" Ast.Printer.print_args args print_expression body
+      printf "lambda %a %a" Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
     | ExprVar ((name, value))  ->
       printf "lvar `%s" name
     | ExprConst ((name, value), base) ->
-      printf "const %a `%s" print_expression base name
+      printf "const %a `%s" (print_expression ~indent:(indent+1)) base name
     | ExprIVar ((name, value)) ->
       printf "ivar `%s" name
     | ExprAssign (name, expr) ->
-      printf "lvasgn `%s %a" name print_expression expr
+      printf "lvasgn `%s %a" name (print_expression ~indent:(indent+1)) expr
     | ExprIVarAssign (name, expr) ->
-      printf "ivasgn %s %a" name print_expression expr
+      printf "ivasgn %s %a" name (print_expression ~indent:(indent+1)) expr
     | ExprConstAssign (name, expr) ->
-      printf "casgn %s %a" name print_expression expr
+      printf "casgn %s %a" name (print_expression ~indent:(indent+1)) expr
     | ExprValue (value) ->
       printf "%a" Ast.Printer.print_value value
     | ExprBlock (expr1, expr2) ->
-      printf "%a %a" print_expression expr1 print_expression expr2
+      printf "%a %a" (print_expression ~indent:(indent+1)) expr1 (print_expression ~indent:(indent+1)) expr2
 
-  and print_expression outc (expr, metadata) =
+  and print_expression ~indent outc (expr, metadata) =
+    if (indent <> 1) then printf "\n";
     let { expr_loc; expr_type; level } = metadata in
     (* printf "%a\n" Location.print_loc expr_loc; *)
-    printf "(%s : %a)" (type_to_str expr_type) print_typed_expr expr
+    printf "%*s(%s : %a)" indent " " (type_to_str expr_type) (print_typed_expr ~indent:indent) expr;
+    if (indent = 1) then printf "\n"
 
   let print_constraint k v =
     match v with
@@ -102,7 +104,7 @@ end
 let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in incr current_var;
-  Printf.printf "-- Creating new type var t/1%03i\n" tv;
+  (* Printf.printf "-- Creating new type var t/1%03i\n" tv; *)
   TPoly(Core.sprintf "t/1%03i" tv)
 
 let rec typeof_value = function
