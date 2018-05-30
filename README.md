@@ -34,14 +34,24 @@ false
 
 y = [1,2,3]
 y.first
+z = y.first
 
-func1 = -> { 45 }
+func1 = -> { x = 45 }
 func2 = -> (local) { }
-func3 = -> (local, _x) { local.first }
+func3 = -> (local, _x) {
+  local.first()
+}
 func3.call(y)
 
 b = 3
 a = b
+
+sum1(5)
+
+-> (local, _x) {
+  local.first()
+}
+
 ```
 
 ```bash
