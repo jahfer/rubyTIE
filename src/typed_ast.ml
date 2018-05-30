@@ -31,73 +31,25 @@ type metadata = {
   level : int;
 }
 
-(* Printer Utility *)
-
-module Printer = struct
-  open Core
-
-  let rec type_to_str = function
-    | THash    -> "hash"
-    | TString  -> "string"
-    | TSymbol  -> "symbol"
-    | TInt     -> "int"
-    | TFloat   -> "float"
-    | TBool    -> "bool"
-    | TNil     -> "nil"
-    | TAny     -> "any"
-    | TConst t ->
-      sprintf "const<%s>" (type_to_str t)
-    | TArray t ->
-      sprintf "array<%s>" (type_to_str t)
-    | TLambda (args, ret) -> 
-      sprintf "lambda<args -> %s>" (type_to_str ret)
-    | TFunc (args, ret) ->
-      sprintf "func<args -> %s>" (type_to_str ret)
-    | TPoly t ->
-      sprintf "%s" t
-
-  let rec print_typed_expr ~indent outc = function
-    | ExprCall (receiver, meth, args) ->
-      printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth
-    | ExprFunc (name, args, body) ->
-      printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
-    | ExprLambda (args, body) ->
-      printf "lambda %a %a" Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
-    | ExprVar ((name, value))  ->
-      printf "lvar `%s" name
-    | ExprConst ((name, value), base) ->
-      printf "const %a `%s" (print_expression ~indent:(indent+1)) base name
-    | ExprIVar ((name, value)) ->
-      printf "ivar `%s" name
-    | ExprAssign (name, expr) ->
-      printf "lvasgn `%s %a" name (print_expression ~indent:(indent+1)) expr
-    | ExprIVarAssign (name, expr) ->
-      printf "ivasgn %s %a" name (print_expression ~indent:(indent+1)) expr
-    | ExprConstAssign (name, expr) ->
-      printf "casgn %s %a" name (print_expression ~indent:(indent+1)) expr
-    | ExprValue (value) ->
-      printf "%a" Ast.Printer.print_value value
-    | ExprBlock (expr1, expr2) ->
-      printf "%a %a" (print_expression ~indent:(indent+1)) expr1 (print_expression ~indent:(indent+1)) expr2
-
-  and print_expression ~indent outc (expr, metadata) =
-    if (indent <> 1) then printf "\n";
-    let { expr_loc; expr_type; level } = metadata in
-    (* printf "%a\n" Location.print_loc expr_loc; *)
-    printf "%*s(%s : %a)" indent " " (type_to_str expr_type) (print_typed_expr ~indent:indent) expr;
-    if (indent = 1) then printf "\n"
-
-  let print_constraint k v =
-    match v with
-    | Literal (t) ->
-      Printf.printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
-    | Member (member, return_t) ->
-      Printf.printf "\027[31m[CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k member (type_to_str return_t)
-    | Equality (a, b) ->
-      Printf.printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b)
-    | _ ->
-      Printf.printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
-end
+let rec type_to_str = function
+  | THash    -> "hash"
+  | TString  -> "string"
+  | TSymbol  -> "symbol"
+  | TInt     -> "int"
+  | TFloat   -> "float"
+  | TBool    -> "bool"
+  | TNil     -> "nil"
+  | TAny     -> "any"
+  | TConst t ->
+    Core.sprintf "const<%s>" (type_to_str t)
+  | TArray t ->
+    Core.sprintf "array<%s>" (type_to_str t)
+  | TLambda (args, ret) -> 
+    Core.sprintf "lambda<args -> %s>" (type_to_str ret)
+  | TFunc (args, ret) ->
+    Core.sprintf "func<args -> %s>" (type_to_str ret)
+  | TPoly t ->
+    Core.sprintf "%s" t
 
 (* Build map and generator for unique type names *)
 
@@ -131,6 +83,30 @@ let rec typeof_expr = function
   | ExprCall ((_, metadata), _, _)
   | ExprConstAssign (_, (_, metadata)) ->
     let { expr_type } = metadata in expr_type
+
+(* Annotations *)
+
+let annotate expression =
+  let rec annotate_expression expr location_meta =
+    let t = gen_fresh_t ()
+    in (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
+  in let (expr, location_meta) = expression in
+  replace_metadata annotate_expression expr location_meta
+
+(* module AnnotationMap = Map.Make (String)
+   let annotations = ref AnnotationMap.empty
+
+   let add_annotation name typ map =
+   let typ_name = (Printer.type_to_str typ) in
+   Printf.printf "\027[31m[ANNOTATION: Bind ('%s' = %s)]\027[m\n" name typ_name;
+   AnnotationMap.add name typ map
+
+   let rec create_annotation name =
+   match AnnotationMap.find_opt name !annotations with
+   | Some(typ) -> typ
+   | None -> let gen_typ = gen_fresh_t () in
+    annotations := add_annotation name gen_typ !annotations;
+    gen_typ *)
 
 (* Constraint Generation *)
 
@@ -171,35 +147,22 @@ let rec build_constraints constraint_map (expr, { expr_type; level }) =
   | 0, TPoly (type_key) -> build_constraint type_key expr
   | _ -> constraint_map
 
-(* Annotations *)
-
-module AnnotationMap = Map.Make (String)
-let annotations = ref AnnotationMap.empty
-
-let add_annotation name typ map =
-  let typ_name = (Printer.type_to_str typ) in
-  Printf.printf "\027[31m[ANNOTATION: Bind ('%s' = %s)]\027[m\n" name typ_name;
-  AnnotationMap.add name typ map
-
-let rec create_annotation name =
-  match AnnotationMap.find_opt name !annotations with
-  | Some(typ) -> typ
-  | None -> let gen_typ = gen_fresh_t () in
-    annotations := add_annotation name gen_typ !annotations;
-    gen_typ
-
-and annotate expression =
-  let rec annotate_expression expr location_meta =
-    let t = gen_fresh_t ()
-    in (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
-  in let (expr, location_meta) = expression in
-  replace_metadata annotate_expression expr location_meta
+let print_constraint k v =
+  match v with
+  | Literal (t) ->
+    Printf.printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
+  | Member (member, return_t) ->
+    Printf.printf "\027[31m[CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k member (type_to_str return_t)
+  | Equality (a, b) ->
+    Printf.printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b)
+  | _ ->
+    Printf.printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
 
 (* AST -> TypedAST *)
 
 let apply_constraints ast constraint_map =
   let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
-      vs |> List.iter (fun v -> Printer.print_constraint k v)
+      vs |> List.iter (fun v -> print_constraint k v)
     ) in ast
 
 let rec to_typed_ast core_expr =
@@ -208,4 +171,39 @@ let rec to_typed_ast core_expr =
   let constraints = build_constraints constraint_map annotations in
   apply_constraints annotations constraints
 
+(* Printer Utility *)
 
+module Printer = struct
+  open Core
+
+  let rec print_typed_expr ~indent outc = function
+    | ExprCall (receiver, meth, args) ->
+      printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth
+    | ExprFunc (name, args, body) ->
+      printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
+    | ExprLambda (args, body) ->
+      printf "lambda %a %a" Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
+    | ExprVar ((name, value))  ->
+      printf "lvar `%s" name
+    | ExprConst ((name, value), base) ->
+      printf "const %a `%s" (print_expression ~indent:(indent+1)) base name
+    | ExprIVar ((name, value)) ->
+      printf "ivar `%s" name
+    | ExprAssign (name, expr) ->
+      printf "lvasgn `%s %a" name (print_expression ~indent:(indent+1)) expr
+    | ExprIVarAssign (name, expr) ->
+      printf "ivasgn %s %a" name (print_expression ~indent:(indent+1)) expr
+    | ExprConstAssign (name, expr) ->
+      printf "casgn %s %a" name (print_expression ~indent:(indent+1)) expr
+    | ExprValue (value) ->
+      printf "%a" Ast.Printer.print_value value
+    | ExprBlock (expr1, expr2) ->
+      printf "%a %a" (print_expression ~indent:(indent+1)) expr1 (print_expression ~indent:(indent+1)) expr2
+
+  and print_expression ~indent outc (expr, metadata) =
+    if (indent <> 1) then printf "\n";
+    let { expr_loc; expr_type; level } = metadata in
+    (* printf "%a\n" Location.print_loc expr_loc; *)
+    printf "%*s(%s : %a)" indent " " (type_to_str expr_type) (print_typed_expr ~indent:indent) expr;
+    if (indent = 1) then printf "\n"
+end
