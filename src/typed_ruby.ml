@@ -29,9 +29,9 @@ let parse_with_error lexbuf =
 
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
-  | Some (expr) ->
-    let typed_ast = Typed_ast.eval (expr) in
-    printf "%a\n" Printer.Typed_ast.print_cexpr typed_ast;
+  | Some (expr) -> let open Typed_ast in
+    let typed_ast = to_typed_ast (expr) in
+    printf "%a\n" (Printer.print_expression ~indent:1) typed_ast;
     parse_and_print lexbuf
   | None -> ()
 

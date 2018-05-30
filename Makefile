@@ -1,14 +1,13 @@
-format = native
-root = cli.$(format)
+format = exe
 file = data/test_basic.rb
 
 build:
-	ocamlbuild -use-menhir -use-ocamlfind -quiet bin/$(root)
+	jbuilder build bin/cli.$(format)
 
-run: build
-	./$(root) $(file)
+run:
+	jbuilder exec bin/cli.$(format) $(file)
 
 clean:
-	corebuild -clean
+	jbuilder clean
 
 .PHONY: build clean run
