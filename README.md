@@ -112,57 +112,57 @@ $ jbuilder exec bin/cli.exe data/test_basic.rb
  (t/1024 : lvasgn `y
   (t/1023 : (array (int 1) (int 2) (int 3))))
 
-[CONSTRAINT: Member (t/1027.first -> t/1028)]
+[CONSTRAINT: Member (t/1026.first -> t/1027)]
  (t/1027 : send
   (t/1026 : lvar `y) `first)
 
-[CONSTRAINT: Equality (t/1030 = t/1031)]
-[CONSTRAINT: Member (t/1030.first -> t/1032)]
- (t/1031 : lvasgn `z
-  (t/1030 : send
-   (t/1029 : lvar `y) `first))
+[CONSTRAINT: Equality (t/1029 = t/1030)]
+[CONSTRAINT: Member (t/1028.first -> t/1029)]
+ (t/1030 : lvasgn `z
+  (t/1029 : send
+   (t/1028 : lvar `y) `first))
 
+[CONSTRAINT: Equality (t/1031 = t/1032)]
+[CONSTRAINT: Literal (t/1031 = int)]
 [CONSTRAINT: Equality (t/1033 = t/1034)]
-[CONSTRAINT: Literal (t/1033 = int)]
-[CONSTRAINT: Equality (t/1035 = t/1036)]
- (t/1036 : lvasgn `func1
-  (t/1035 : lambda ()
-   (t/1034 : lvasgn `x
-    (t/1033 : (int 45)))))
+ (t/1034 : lvasgn `func1
+  (t/1033 : lambda ()
+   (t/1032 : lvasgn `x
+    (t/1031 : (int 45)))))
 
-[CONSTRAINT: Literal (t/1037 = nil)]
-[CONSTRAINT: Equality (t/1038 = t/1039)]
- (t/1039 : lvasgn `func2
-  (t/1038 : lambda (args (arg `local))
-   (t/1037 : (nil))))
+[CONSTRAINT: Literal (t/1035 = nil)]
+[CONSTRAINT: Equality (t/1036 = t/1037)]
+ (t/1037 : lvasgn `func2
+  (t/1036 : lambda (args (arg `local))
+   (t/1035 : (nil))))
 
-[CONSTRAINT: Member (t/1041.first -> t/1044)]
-[CONSTRAINT: Equality (t/1042 = t/1043)]
- (t/1043 : lvasgn `func3
-  (t/1042 : lambda (args (arg `local) (arg `_x))
-   (t/1041 : send
-    (t/1040 : lvar `local) `first)))
+[CONSTRAINT: Member (t/1038.first -> t/1039)]
+[CONSTRAINT: Equality (t/1040 = t/1041)]
+ (t/1041 : lvasgn `func3
+  (t/1040 : lambda (args (arg `local) (arg `_x))
+   (t/1039 : send
+    (t/1038 : lvar `local) `first)))
 
-[CONSTRAINT: Member (t/1047.call -> t/1048)]
- (t/1047 : send
-  (t/1045 : lvar `func3) `call)
+[CONSTRAINT: Member (t/1042.call -> t/1044)]
+ (t/1044 : send
+  (t/1042 : lvar `func3) `call)
 
-[CONSTRAINT: Equality (t/1049 = t/1050)]
-[CONSTRAINT: Literal (t/1049 = int)]
- (t/1050 : lvasgn `b
-  (t/1049 : (int 3)))
+[CONSTRAINT: Equality (t/1045 = t/1046)]
+[CONSTRAINT: Literal (t/1045 = int)]
+ (t/1046 : lvasgn `b
+  (t/1045 : (int 3)))
 
-[CONSTRAINT: Equality (t/1051 = t/1052)]
- (t/1052 : lvasgn `a
-  (t/1051 : lvar `b))
+[CONSTRAINT: Equality (t/1047 = t/1048)]
+ (t/1048 : lvasgn `a
+  (t/1047 : lvar `b))
 
-[CONSTRAINT: Literal (t/1053 = nil)]
-[CONSTRAINT: Member (t/1055.sum1 -> nil)]
- (t/1055 : send
-  (t/1053 : (nil)) `sum1)
+[CONSTRAINT: Literal (t/1049 = nil)]
+[CONSTRAINT: Member (t/1049.sum1 -> t/1051)]
+ (t/1051 : send
+  (t/1049 : (nil)) `sum1)
 
-[CONSTRAINT: Member (t/1057.first -> t/1059)]
- (t/1058 : lambda (args (arg `local) (arg `_x))
-  (t/1057 : send
-   (t/1056 : lvar `local) `first))
+[CONSTRAINT: Member (t/1052.first -> t/1053)]
+ (t/1054 : lambda (args (arg `local) (arg `_x))
+  (t/1053 : send
+   (t/1052 : lvar `local) `first))
 ```
