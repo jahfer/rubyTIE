@@ -4,8 +4,6 @@ Very much a work-in-progress. I have no idea what I'm doing.
 ## Example
 **Input**
 ```ruby
-# data/test_basic.rb
-
 foo
 45
 
@@ -47,11 +45,11 @@ b = 3
 a = b
 
 sum1(5)
+sum2(1,2)
 
 -> (local, _x) {
   local.first()
 }
-
 ```
 
 ```bash
@@ -60,109 +58,121 @@ $ jbuilder exec bin/cli.exe data/test_basic.rb
 
 **Output**
 ```clj
- (t/1001 : lvar `foo)
+ (T1 : lvar `foo)
 
-[CONSTRAINT: Literal (t/1002 = int)]
- (t/1002 : (int 45))
+[CONSTRAINT: Literal (T2 = int)]
+ (T2 : (int 45))
 
-[CONSTRAINT: Equality (t/1003 = t/1004)]
-[CONSTRAINT: Literal (t/1003 = hash)]
- (t/1004 : lvasgn `params
-  (t/1003 : (hash (pair (str "key") (true)) (pair (str "another") (str "value")))))
+[CONSTRAINT: Equality (T3 = T4)]
+[CONSTRAINT: Literal (T3 = hash)]
+ (T4 : lvasgn `params
+  (T3 : (hash (pair (str "key") (true)) (pair (str "another") (str "value")))))
 
-[CONSTRAINT: Equality (t/1005 = t/1006)]
-[CONSTRAINT: Literal (t/1005 = symbol)]
- (t/1006 : ivasgn @x
-  (t/1005 : (sym `my_symbol)))
+[CONSTRAINT: Equality (T5 = T6)]
+[CONSTRAINT: Literal (T5 = symbol)]
+ (T6 : ivasgn @x
+  (T5 : (sym `my_symbol)))
 
- (t/1007 : ivar `@x)
+ (T7 : ivar `@x)
 
-[CONSTRAINT: Equality (t/1008 = t/1009)]
-[CONSTRAINT: Literal (t/1008 = float)]
- (t/1009 : casgn FooBar
-  (t/1008 : (float 151.560000)))
+[CONSTRAINT: Equality (T8 = T9)]
+[CONSTRAINT: Literal (T8 = float)]
+ (T9 : casgn FooBar
+  (T8 : (float 151.560000)))
 
- (t/1011 : const
-  (t/1010 : (nil)) `FooBar)
+ (T11 : const
+  (T10 : (nil)) `FooBar)
 
-[CONSTRAINT: Equality (t/1012 = t/1013)]
-[CONSTRAINT: Literal (t/1012 = int)]
- (t/1013 : lvasgn `stmt1
-  (t/1012 : (int 3)))
+[CONSTRAINT: Equality (T12 = T13)]
+[CONSTRAINT: Literal (T12 = int)]
+ (T13 : lvasgn `stmt1
+  (T12 : (int 3)))
 
-[CONSTRAINT: Equality (t/1014 = t/1015)]
-[CONSTRAINT: Literal (t/1014 = int)]
- (t/1015 : lvasgn `stmt2
-  (t/1014 : (int 1)))
+[CONSTRAINT: Equality (T14 = T15)]
+[CONSTRAINT: Literal (T14 = int)]
+ (T15 : lvasgn `stmt2
+  (T14 : (int 1)))
 
- (t/1017 : def `sum0 ()
-  (t/1016 : (false)))
+ (T17 : def `sum0 ()
+  (T16 : (false)))
 
- (t/1019 : def `sum1 (args (arg `thing))
-  (t/1018 : (int 45)))
+ (T19 : def `sum1 (args (arg `thing))
+  (T18 : (int 45)))
 
- (t/1021 : def `sum2 (args (arg `thing1) (arg `thing2))
-  (t/1020 : (nil)))
+ (T21 : def `sum2 (args (arg `thing1) (arg `thing2))
+  (T20 : (nil)))
 
-[CONSTRAINT: Literal (t/1022 = bool)]
- (t/1022 : (false))
+[CONSTRAINT: Literal (T22 = bool)]
+ (T22 : (false))
 
-[CONSTRAINT: Equality (t/1023 = t/1024)]
-[CONSTRAINT: Literal (t/1023 = array<t/1025>)]
- (t/1024 : lvasgn `y
-  (t/1023 : (array (int 1) (int 2) (int 3))))
+[CONSTRAINT: Equality (T23 = T24)]
+[CONSTRAINT: Literal (T23 = array<T25>)]
+ (T24 : lvasgn `y
+  (T23 : (array (int 1) (int 2) (int 3))))
 
-[CONSTRAINT: Member (t/1026.first -> t/1027)]
- (t/1027 : send
-  (t/1026 : lvar `y) `first)
+[CONSTRAINT: FunctionApplication (() -> T27 =Fn T26[.first])]
+ (T27 : send
+  (T26 : lvar `y) `first)
 
-[CONSTRAINT: Equality (t/1029 = t/1030)]
-[CONSTRAINT: Member (t/1028.first -> t/1029)]
- (t/1030 : lvasgn `z
-  (t/1029 : send
-   (t/1028 : lvar `y) `first))
+[CONSTRAINT: Equality (T29 = T30)]
+[CONSTRAINT: FunctionApplication (() -> T29 =Fn T28[.first])]
+ (T30 : lvasgn `z
+  (T29 : send
+   (T28 : lvar `y) `first))
 
-[CONSTRAINT: Equality (t/1031 = t/1032)]
-[CONSTRAINT: Literal (t/1031 = int)]
-[CONSTRAINT: Equality (t/1033 = t/1034)]
- (t/1034 : lvasgn `func1
-  (t/1033 : lambda ()
-   (t/1032 : lvasgn `x
-    (t/1031 : (int 45)))))
+[CONSTRAINT: Equality (T31 = T32)]
+[CONSTRAINT: Literal (T31 = int)]
+[CONSTRAINT: Equality (T33 = T34)]
+ (T34 : lvasgn `func1
+  (T33 : lambda ()
+   (T32 : lvasgn `x
+    (T31 : (int 45)))))
 
-[CONSTRAINT: Literal (t/1035 = nil)]
-[CONSTRAINT: Equality (t/1036 = t/1037)]
- (t/1037 : lvasgn `func2
-  (t/1036 : lambda (args (arg `local))
-   (t/1035 : (nil))))
+[CONSTRAINT: Literal (T35 = nil)]
+[CONSTRAINT: Equality (T36 = T37)]
+ (T37 : lvasgn `func2
+  (T36 : lambda (args (arg `local))
+   (T35 : (nil))))
 
-[CONSTRAINT: Member (t/1038.first -> t/1039)]
-[CONSTRAINT: Equality (t/1040 = t/1041)]
- (t/1041 : lvasgn `func3
-  (t/1040 : lambda (args (arg `local) (arg `_x))
-   (t/1039 : send
-    (t/1038 : lvar `local) `first)))
+[CONSTRAINT: FunctionApplication (() -> T39 =Fn T38[.first])]
+[CONSTRAINT: Equality (T40 = T41)]
+ (T41 : lvasgn `func3
+  (T40 : lambda (args (arg `local) (arg `_x))
+   (T39 : send
+    (T38 : lvar `local) `first)))
 
-[CONSTRAINT: Member (t/1042.call -> t/1044)]
- (t/1044 : send
-  (t/1042 : lvar `func3) `call)
+[CONSTRAINT: FunctionApplication (T43 -> T44 =Fn T42[.call])]
+ (T44 : send
+  (T42 : lvar `func3) `call
+   (T43 : lvar `y))
 
-[CONSTRAINT: Equality (t/1045 = t/1046)]
-[CONSTRAINT: Literal (t/1045 = int)]
- (t/1046 : lvasgn `b
-  (t/1045 : (int 3)))
+[CONSTRAINT: Equality (T45 = T46)]
+[CONSTRAINT: Literal (T45 = int)]
+ (T46 : lvasgn `b
+  (T45 : (int 3)))
 
-[CONSTRAINT: Equality (t/1047 = t/1048)]
- (t/1048 : lvasgn `a
-  (t/1047 : lvar `b))
+[CONSTRAINT: Equality (T47 = T48)]
+ (T48 : lvasgn `a
+  (T47 : lvar `b))
 
-[CONSTRAINT: Literal (t/1049 = nil)]
-[CONSTRAINT: Member (t/1049.sum1 -> t/1051)]
- (t/1051 : send
-  (t/1049 : (nil)) `sum1)
+[CONSTRAINT: Literal (T49 = nil)]
+[CONSTRAINT: Literal (T50 = int)]
+[CONSTRAINT: FunctionApplication (T50 -> T51 =Fn T49[.sum1])]
+ (T51 : send
+  (T49 : (nil)) `sum1
+   (T50 : (int 5)))
 
-[CONSTRAINT: Member (t/1052.first -> t/1053)]
- (t/1054 : lambda (args (arg `local) (arg `_x))
-  (t/1053 : send
-   (t/1052 : lvar `local) `first))
+[CONSTRAINT: Literal (T52 = nil)]
+[CONSTRAINT: Literal (T53 = int)]
+[CONSTRAINT: Literal (T54 = int)]
+[CONSTRAINT: FunctionApplication (T53 -> T54 -> T55 =Fn T52[.sum2])]
+ (T55 : send
+  (T52 : (nil)) `sum2
+   (T53 : (int 1))
+   (T54 : (int 2)))
+
+[CONSTRAINT: FunctionApplication (() -> T57 =Fn T56[.first])]
+ (T58 : lambda (args (arg `local) (arg `_x))
+  (T57 : send
+   (T56 : lvar `local) `first))
 ```
