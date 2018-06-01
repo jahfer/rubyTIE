@@ -123,7 +123,7 @@ $ jbuilder exec bin/cli.exe data/test_basic.rb
 [CONSTRAINT: Equality (T31 = T32)]
 [CONSTRAINT: Literal (T31 = int)]
 [CONSTRAINT: Equality (T33 = T34)]
-[CONSTRAINT: Literal (T33 = lambda<args -> any>)]
+[CONSTRAINT: Literal (T33 = lambda<args -> T32>)]
  (T34 : lvasgn `func1
   (T33 : lambda ()
    (T32 : lvasgn `x
@@ -131,14 +131,14 @@ $ jbuilder exec bin/cli.exe data/test_basic.rb
 
 [CONSTRAINT: Literal (T35 = nil)]
 [CONSTRAINT: Equality (T36 = T37)]
-[CONSTRAINT: Literal (T36 = lambda<args -> any>)]
+[CONSTRAINT: Literal (T36 = lambda<args -> T35>)]
  (T37 : lvasgn `func2
   (T36 : lambda (args (arg `local))
    (T35 : (nil))))
 
 [CONSTRAINT: FunctionApplication (() -> T39 =Fn T38[.first])]
 [CONSTRAINT: Equality (T40 = T41)]
-[CONSTRAINT: Literal (T40 = lambda<args -> any>)]
+[CONSTRAINT: Literal (T40 = lambda<args -> T39>)]
  (T41 : lvasgn `func3
   (T40 : lambda (args (arg `local) (arg `_x))
    (T39 : send
@@ -175,7 +175,7 @@ $ jbuilder exec bin/cli.exe data/test_basic.rb
    (T54 : (int 2)))
 
 [CONSTRAINT: FunctionApplication (() -> T57 =Fn T56[.first])]
-[CONSTRAINT: Literal (T58 = lambda<args -> any>)]
+[CONSTRAINT: Literal (T58 = lambda<args -> T57>)]
  (T58 : lambda (args (arg `local) (arg `_x))
   (T57 : send
    (T56 : lvar `local) `first))

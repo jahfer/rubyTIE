@@ -143,8 +143,9 @@ let rec build_constraints constraint_map (expr, { expr_type; level }) =
                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver_t)) in
       List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) ->
+      let (_, {expr_type = return_t}) = expression in
       build_constraints constraint_map expression
-      |> append_constraint type_key (Literal(TLambda([TAny], TAny)))
+      |> append_constraint type_key (Literal(TLambda([TAny], return_t)))
     | _ -> constraint_map
   in match (level, expr_type) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
