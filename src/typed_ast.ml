@@ -17,14 +17,6 @@ type t =
   | TLambda of t list * t
   | TFunc of t list * t
 
-type constraint_t =
-  | Literal of t
-  | Member of string * t (* member name, return value *)
-  | Equality of t * t
-  | Disjuction of constraint_t list
-  | Overload of t
-  | Class of t
-
 type metadata = {
   expr_loc : Location.t;
   expr_type : t;
@@ -57,7 +49,7 @@ let current_var = ref 1
 let gen_fresh_t () =
   let tv = !current_var in incr current_var;
   (* Printf.printf "-- Creating new type var t/1%03i\n" tv; *)
-  TPoly(Core.sprintf "t/1%03i" tv)
+  TPoly(Core.sprintf "T%i" tv)
 
 let rec typeof_value = function
   | Hash _   -> THash
@@ -88,8 +80,8 @@ let rec typeof_expr = function
 
 let annotate expression =
   let rec annotate_expression expr location_meta =
-    let t = gen_fresh_t ()
-    in (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
+    let t = gen_fresh_t () in
+    (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 
@@ -109,6 +101,14 @@ let annotate expression =
     gen_typ *)
 
 (* Constraint Generation *)
+
+type constraint_t =
+  | Literal of t
+  | FunctionApplication of string * t list * t (* member name, args, return value *)
+  | Equality of t * t
+  | Disjuction of constraint_t list
+  | Overload of t
+  | Class of t
 
 module ConstraintMap = Map.Make (String)
 
@@ -136,11 +136,12 @@ let rec build_constraints constraint_map (expr, { expr_type; level }) =
           |> append_constraint type_key (Literal typ)
         | _ -> append_constraint type_key (Literal typ) constraint_map
       end
-    | ExprCall (receiver_expression, meth, _args) ->
-      let constraint_map = build_constraints constraint_map receiver_expression in
-      let receiver_expr = fst(receiver_expression) in
-      let return_typ = typeof_expr receiver_expr in
-      constraint_map|> append_constraint type_key (Member(meth, return_typ))
+    | ExprCall (receiver_expression, meth, args) ->
+      let (_, {expr_type = receiver_t}) = receiver_expression in
+      let arg_types = args |> List.map (fun (_, {expr_type}) -> expr_type) in
+      let constraint_map = build_constraints constraint_map receiver_expression
+                           |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver_t)) in
+      List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) -> build_constraints constraint_map expression
     | _ -> constraint_map
   in match (level, expr_type) with
@@ -151,8 +152,12 @@ let print_constraint k v =
   match v with
   | Literal (t) ->
     Printf.printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
-  | Member (member, return_t) ->
-    Printf.printf "\027[31m[CONSTRAINT: Member (%s.%s -> %s)]\027[m\n" k member (type_to_str return_t)
+  | FunctionApplication (member, args, receiver_t) ->
+    Printf.printf "\027[31m[CONSTRAINT: FunctionApplication (%s -> %s =Fn %s[.%s])]\027[m\n"
+      (if List.length args > 0 then 
+         (String.concat " -> " (List.map (fun arg_t -> type_to_str arg_t) args))
+       else "()")
+      k (type_to_str receiver_t) member
   | Equality (a, b) ->
     Printf.printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b)
   | _ ->
@@ -178,7 +183,8 @@ module Printer = struct
 
   let rec print_typed_expr ~indent outc = function
     | ExprCall (receiver, meth, args) ->
-      printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth
+      printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth;
+      (args |> List.iteri ~f:(fun i expr -> print_expression ~indent:(indent+2) outc expr))
     | ExprFunc (name, args, body) ->
       printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
     | ExprLambda (args, body) ->

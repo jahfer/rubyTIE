@@ -39,6 +39,7 @@ b = 3
 a = b
 
 sum1(5)
+sum2(1,2)
 
 -> (local, _x) {
   local.first()
