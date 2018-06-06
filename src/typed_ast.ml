@@ -258,14 +258,13 @@ module Printer = struct
   and print_expression ~indent outc (expr, metadata) =
     if (indent <> 1) then printf "\n";
     let { expr_loc; type_reference; level } = metadata in
-    (* printf "%a\n" Location.print_loc expr_loc; *)
+    (* printf "# %a\n" Location.print_loc expr_loc; *)
     printf "%*s(%s : %a)" indent " "
       begin
         if !(type_reference.parent).elem = type_reference.elem
         then (type_to_str type_reference.elem)
         else sprintf "%s [%s]" (type_to_str (Disjoint_set.find type_reference).elem) (type_to_str type_reference.elem)
       end
-      (* (type_to_str type_reference.elem) *)
       (print_typed_expr ~indent:indent)
       expr;
     if (indent = 1) then printf "\n"
