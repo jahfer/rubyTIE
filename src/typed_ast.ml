@@ -89,22 +89,37 @@ let annotate expression =
 
 (* Constraint Generation *)
 
+module PolymorphicTypeEntries = Map.Make (String)
+
 let type_entry =
-  let t_hash = Disjoint_set.make THash in
+  let 
+  t_hash = Disjoint_set.make THash and
+  t_bool = Disjoint_set.make TBool and
+  t_float = Disjoint_set.make TFloat and
+  t_int = Disjoint_set.make TInt and
+  t_array = Disjoint_set.make @@ TArray (TAny) and
+  t_nil = Disjoint_set.make TNil and
+  t_string = Disjoint_set.make TString and
+  t_symbol = Disjoint_set.make TSymbol and
+  t_const = Disjoint_set.make @@ TConst (TAny) and
+  t_any = Disjoint_set.make TAny and
+  t_poly = Disjoint_set.make @@ TPoly ("x") and
+  t_lambda = Disjoint_set.make @@ TLambda ([TAny], TAny) and
+  t_func = Disjoint_set.make @@ TFunc ([TAny], TAny) in
   function
-  | TBool
-  | TFloat
-  | TInt
-  | TArray _
-  | TNil
-  | TString
-  | TSymbol
-  | TConst _
-  | TAny
-  | TPoly _
-  | TLambda _
-  | TFunc _ 
-  | THash -> t_hash
+  | THash -> incr t_hash.rank; t_hash
+  | TBool -> incr t_bool.rank; t_bool
+  | TFloat -> incr t_float.rank; t_float
+  | TInt -> incr t_int.rank; t_int
+  | TArray _ -> incr t_array.rank; t_array
+  | TNil -> incr t_nil.rank; t_nil
+  | TString -> incr t_string.rank; t_string
+  | TSymbol -> incr t_symbol.rank; t_symbol
+  | TConst _ -> incr t_const.rank; t_const
+  | TAny -> incr t_any.rank; t_any
+  | TPoly _ -> incr t_poly.rank; t_poly
+  | TLambda _ -> incr t_lambda.rank; t_lambda
+  | TFunc _ -> incr t_func.rank; t_func
 
 type constraint_t =
   | Literal of t
@@ -126,6 +141,7 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
   let expr_t = type_reference.elem in
   let build_constraint type_key = function
     | ExprValue(v) ->
+      Disjoint_set.union (type_entry @@ typeof_value v) type_reference;
       constraint_map
       |> append_constraint type_key (Literal (typeof_value v))
     | ExprAssign (v, ((_, metadata) as iexpr))
@@ -133,14 +149,19 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
     | ExprConstAssign (v, ((_, metadata) as iexpr)) ->
       Disjoint_set.union type_reference metadata.type_reference;
       let constraint_map = build_constraints constraint_map iexpr in
-      let typ = typeof_expr expr in begin match typ with
-        | TPoly t ->
-          append_constraint t (Equality (typ, expr_t)) constraint_map
-        | TLambda (_, (TPoly(t) as poly_t)) ->
-          constraint_map
-          |> append_constraint t (Equality (poly_t, expr_t))
-          |> append_constraint type_key (Literal typ)
-        | _ -> append_constraint type_key (Literal typ) constraint_map
+      let typ = typeof_expr expr in 
+      begin match typ with
+      | TPoly t ->
+        append_constraint t (Equality (typ, expr_t)) constraint_map
+      | TLambda (_, (TPoly(t) as poly_t)) ->
+        constraint_map
+        |> append_constraint t (Equality (poly_t, expr_t))
+        |> append_constraint type_key (Literal typ)
+      | _ ->
+        (* Never reached *)
+        (* Disjoint_set.union (type_entry typ) type_reference;
+        Printf.printf "!!! %s <- %s" (type_to_str typ) (type_to_str expr_t); *)
+        append_constraint type_key (Literal typ) constraint_map
       end
     | ExprCall (receiver_expression, meth, args) ->
       let (_, {type_reference = receiver}) = receiver_expression in
@@ -239,7 +260,11 @@ module Printer = struct
     let { expr_loc; type_reference; level } = metadata in
     (* printf "%a\n" Location.print_loc expr_loc; *)
     printf "%*s(%s : %a)" indent " "
-      (type_to_str (Disjoint_set.find type_reference).elem)
+      begin
+        if !(type_reference.parent).elem = type_reference.elem
+        then (type_to_str type_reference.elem)
+        else sprintf "%s [%s]" (type_to_str (Disjoint_set.find type_reference).elem) (type_to_str type_reference.elem)
+      end
       (* (type_to_str type_reference.elem) *)
       (print_typed_expr ~indent:indent)
       expr;

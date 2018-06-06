@@ -12,7 +12,7 @@ let make elem =
     parent = ref x;
     rank = ref 0;
     size = ref 1;
-    elem 
+    elem
   } in x
 
 let rec find x =
