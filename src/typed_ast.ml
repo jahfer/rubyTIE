@@ -19,7 +19,7 @@ type t =
 
 type metadata = {
   expr_loc : Location.t;
-  expr_type : t;
+  type_reference : t Disjoint_set.t;
   level : int;
 }
 
@@ -74,33 +74,37 @@ let rec typeof_expr = function
   | ExprIVarAssign (_, (_, metadata))
   | ExprCall ((_, metadata), _, _)
   | ExprConstAssign (_, (_, metadata)) ->
-    let { expr_type } = metadata in expr_type
+    let { type_reference } = metadata in
+    type_reference.elem
 
 (* Annotations *)
 
 let annotate expression =
   let rec annotate_expression expr location_meta =
     let t = gen_fresh_t () in
-    (expr, { expr_loc = location_meta; expr_type = t; level = 0 })
+    let wrapped_t = Disjoint_set.make t in
+    (expr, { expr_loc = location_meta; type_reference = wrapped_t; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 
-(* module AnnotationMap = Map.Make (String)
-   let annotations = ref AnnotationMap.empty
-
-   let add_annotation name typ map =
-   let typ_name = (Printer.type_to_str typ) in
-   Printf.printf "\027[31m[ANNOTATION: Bind ('%s' = %s)]\027[m\n" name typ_name;
-   AnnotationMap.add name typ map
-
-   let rec create_annotation name =
-   match AnnotationMap.find_opt name !annotations with
-   | Some(typ) -> typ
-   | None -> let gen_typ = gen_fresh_t () in
-    annotations := add_annotation name gen_typ !annotations;
-    gen_typ *)
-
 (* Constraint Generation *)
+
+let type_entry =
+  let t_hash = Disjoint_set.make THash in
+  function
+  | TBool
+  | TFloat
+  | TInt
+  | TArray _
+  | TNil
+  | TString
+  | TSymbol
+  | TConst _
+  | TAny
+  | TPoly _
+  | TLambda _
+  | TFunc _ 
+  | THash -> t_hash
 
 type constraint_t =
   | Literal of t
@@ -118,36 +122,40 @@ let append_constraint k c map =
     | None -> []
   in map |> ConstraintMap.add k (c :: lst)
 
-let rec build_constraints constraint_map (expr, { expr_type; level }) =
+let rec build_constraints constraint_map (expr, { type_reference; level }) =
+  let expr_t = type_reference.elem in
   let build_constraint type_key = function
-    | ExprValue(v) -> 
+    | ExprValue(v) ->
       constraint_map
       |> append_constraint type_key (Literal (typeof_value v))
-    | ExprAssign (v, iexpr)
-    | ExprIVarAssign (v, iexpr)
-    | ExprConstAssign (v, iexpr) ->
+    | ExprAssign (v, ((_, metadata) as iexpr))
+    | ExprIVarAssign (v, ((_, metadata) as iexpr))
+    | ExprConstAssign (v, ((_, metadata) as iexpr)) ->
+      Disjoint_set.union type_reference metadata.type_reference;
       let constraint_map = build_constraints constraint_map iexpr in
       let typ = typeof_expr expr in begin match typ with
         | TPoly t ->
-          append_constraint t (Equality (typ, expr_type)) constraint_map
+          append_constraint t (Equality (typ, expr_t)) constraint_map
         | TLambda (_, (TPoly(t) as poly_t)) ->
           constraint_map
-          |> append_constraint t (Equality (poly_t, expr_type))
+          |> append_constraint t (Equality (poly_t, expr_t))
           |> append_constraint type_key (Literal typ)
         | _ -> append_constraint type_key (Literal typ) constraint_map
       end
     | ExprCall (receiver_expression, meth, args) ->
-      let (_, {expr_type = receiver_t}) = receiver_expression in
-      let arg_types = args |> List.map (fun (_, {expr_type}) -> expr_type) in
+      let (_, {type_reference = receiver}) = receiver_expression in
+      let receiver_t = receiver.elem in
+      let arg_types = args |> List.map (fun (_, {type_reference}) -> type_reference.elem) in
       let constraint_map = build_constraints constraint_map receiver_expression
                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver_t)) in
       List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) ->
-      let (_, {expr_type = return_t}) = expression in
+      let (_, {type_reference = return_type_wrapper}) = expression in
+      let return_t = return_type_wrapper.elem in
       build_constraints constraint_map expression
       |> append_constraint type_key (Literal(TLambda([TAny], return_t)))
     | _ -> constraint_map
-  in match (level, expr_type) with
+  in match (level, expr_t) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
   | _ -> constraint_map
 
@@ -169,9 +177,26 @@ let print_constraint k v =
 (* AST -> TypedAST *)
 
 let apply_constraints ast constraint_map =
-  let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
+   let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
       vs |> List.iter (fun v -> print_constraint k v)
     ) in ast
+
+(* let apply_constraints ast constraint_map =
+  let rec annotate_expression expr ({ type_reference } as meta) =
+    match type_reference with
+    | TPoly (type_key) -> 
+      let bound_type = ConstraintMap.mem type_key constraint_map in
+      if bound_type then
+        let literal_constraint = constraint_map
+                                 |> ConstraintMap.find(type_key)
+                                 |> List.find_opt (function | Literal(_) -> true | _ -> false) in
+        (match literal_constraint with
+        | Some(Literal(t)) -> (expr, { meta with type_reference = t; level = 0 })
+        | _ -> (expr, meta))
+      else (expr, meta)
+    | _ -> (expr, meta)
+  in let (expr, meta) = ast in
+  replace_metadata annotate_expression expr meta *)
 
 let rec to_typed_ast core_expr =
   let constraint_map = ConstraintMap.empty in
@@ -211,8 +236,12 @@ module Printer = struct
 
   and print_expression ~indent outc (expr, metadata) =
     if (indent <> 1) then printf "\n";
-    let { expr_loc; expr_type; level } = metadata in
+    let { expr_loc; type_reference; level } = metadata in
     (* printf "%a\n" Location.print_loc expr_loc; *)
-    printf "%*s(%s : %a)" indent " " (type_to_str expr_type) (print_typed_expr ~indent:indent) expr;
+    printf "%*s(%s : %a)" indent " "
+      (type_to_str (Disjoint_set.find type_reference).elem)
+      (* (type_to_str type_reference.elem) *)
+      (print_typed_expr ~indent:indent)
+      expr;
     if (indent = 1) then printf "\n"
 end
