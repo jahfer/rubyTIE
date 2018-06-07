@@ -51,32 +51,6 @@ let gen_fresh_t () =
   (* Printf.printf "-- Creating new type var t/1%03i\n" tv; *)
   TPoly(Core.sprintf "T%i" tv)
 
-let rec typeof_value = function
-  | Hash _   -> THash
-  | Bool _   -> TBool
-  | Float _  -> TFloat
-  | Int _    -> TInt
-  | Array _  -> TArray (gen_fresh_t ())
-  | String _ -> TString
-  | Symbol _ -> TSymbol
-  | Nil      -> TNil
-  | Any      -> gen_fresh_t ()
-
-let rec typeof_expr = function
-  | ExprVar ((_, value))
-  | ExprIVar ((_, value))
-  | ExprConst ((_, value), _)
-  | ExprValue (value) -> typeof_value value
-  | ExprFunc (_, _, (_, metadata))
-  | ExprLambda (_, (_, metadata))
-  | ExprBlock (_, (_, metadata))
-  | ExprAssign (_, (_, metadata))
-  | ExprIVarAssign (_, (_, metadata))
-  | ExprCall ((_, metadata), _, _)
-  | ExprConstAssign (_, (_, metadata)) ->
-    let { type_reference } = metadata in
-    type_reference.elem
-
 (* Annotations *)
 
 let annotate expression =
@@ -89,9 +63,8 @@ let annotate expression =
 
 (* Constraint Generation *)
 
-module PolymorphicTypeEntries = Map.Make (String)
-
-let type_entry =
+(* TODO: One record per subtype *)
+let disjoint_set_t =
   let 
   t_hash = Disjoint_set.make THash and
   t_bool = Disjoint_set.make TBool and
@@ -121,13 +94,39 @@ let type_entry =
   | TLambda _ -> incr t_lambda.rank; t_lambda
   | TFunc _ -> incr t_func.rank; t_func
 
+let rec typeof_value = function
+  | Hash _   -> THash
+  | Bool _   -> TBool
+  | Float _  -> TFloat
+  | Int _    -> TInt
+  | Array _  -> TArray (gen_fresh_t ())
+  | String _ -> TString
+  | Symbol _ -> TSymbol
+  | Nil      -> TNil
+  | Any      -> gen_fresh_t ()
+
+let rec typeof_expr = function
+  | ExprVar ((_, value))
+  | ExprIVar ((_, value))
+  | ExprConst ((_, value), _)
+  | ExprValue (value) -> disjoint_set_t @@ typeof_value value
+  | ExprFunc (_, _, (_, metadata))
+  | ExprLambda (_, (_, metadata))
+  | ExprBlock (_, (_, metadata))
+  | ExprAssign (_, (_, metadata))
+  | ExprIVarAssign (_, (_, metadata))
+  | ExprCall ((_, metadata), _, _)
+  | ExprConstAssign (_, (_, metadata)) ->
+    let { type_reference } = metadata in type_reference
+
+(* TODO: Reference `t Disjoint_set.t` instead of naked `t` *)
 type constraint_t =
-  | Literal of t
-  | FunctionApplication of string * t list * t (* member name, args, return value *)
-  | Equality of t * t
+  | Literal of t Disjoint_set.t
+  | FunctionApplication of string * t Disjoint_set.t list * t Disjoint_set.t (* member name, args, return value *)
+  | Equality of t Disjoint_set.t * t Disjoint_set.t
   | Disjuction of constraint_t list
-  | Overload of t
-  | Class of t
+  | Overload of t Disjoint_set.t
+  | Class of t Disjoint_set.t
 
 module ConstraintMap = Map.Make (String)
 
@@ -138,102 +137,61 @@ let append_constraint k c map =
   in map |> ConstraintMap.add k (c :: lst)
 
 let rec build_constraints constraint_map (expr, { type_reference; level }) =
-  let expr_t = type_reference.elem in
   let build_constraint type_key = function
     | ExprValue(v) ->
-      Disjoint_set.union (type_entry @@ typeof_value v) type_reference;
+      Disjoint_set.union (disjoint_set_t @@ typeof_value v) type_reference;
       constraint_map
-      |> append_constraint type_key (Literal (typeof_value v))
+      |> append_constraint type_key (Literal (disjoint_set_t @@ typeof_value v))
     | ExprAssign (v, ((_, metadata) as iexpr))
     | ExprIVarAssign (v, ((_, metadata) as iexpr))
     | ExprConstAssign (v, ((_, metadata) as iexpr)) ->
       Disjoint_set.union type_reference metadata.type_reference;
       let constraint_map = build_constraints constraint_map iexpr in
       let typ = typeof_expr expr in 
-      begin match typ with
+      begin match typ.elem with
       | TPoly t ->
-        append_constraint t (Equality (typ, expr_t)) constraint_map
+        append_constraint t (Equality (typ, type_reference)) constraint_map
       | TLambda (_, (TPoly(t) as poly_t)) ->
         constraint_map
-        |> append_constraint t (Equality (poly_t, expr_t))
+        |> append_constraint t (Equality ((disjoint_set_t poly_t), type_reference))
         |> append_constraint type_key (Literal typ)
       | _ ->
         (* Never reached *)
-        (* Disjoint_set.union (type_entry typ) type_reference;
-        Printf.printf "!!! %s <- %s" (type_to_str typ) (type_to_str expr_t); *)
         append_constraint type_key (Literal typ) constraint_map
       end
     | ExprCall (receiver_expression, meth, args) ->
       let (_, {type_reference = receiver}) = receiver_expression in
-      let receiver_t = receiver.elem in
-      let arg_types = args |> List.map (fun (_, {type_reference}) -> type_reference.elem) in
+      let arg_types = args |> List.map (fun (_, {type_reference}) -> type_reference) in
       let constraint_map = build_constraints constraint_map receiver_expression
-                           |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver_t)) in
+                           |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
       List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) ->
       let (_, {type_reference = return_type_wrapper}) = expression in
       let return_t = return_type_wrapper.elem in
       build_constraints constraint_map expression
-      |> append_constraint type_key (Literal(TLambda([TAny], return_t)))
+      |> append_constraint type_key (Literal(disjoint_set_t @@ TLambda([TAny], return_t)))
     | _ -> constraint_map
-  in match (level, expr_t) with
+  in match (level, type_reference.elem) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
   | _ -> constraint_map
-
-let print_constraint k v =
-  match v with
-  | Literal (t) ->
-    Printf.printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
-  | FunctionApplication (member, args, receiver_t) ->
-    Printf.printf "\027[31m[CONSTRAINT: FunctionApplication (%s -> %s =Fn %s[.%s])]\027[m\n"
-      (if List.length args > 0 then 
-         (String.concat " -> " (List.map (fun arg_t -> type_to_str arg_t) args))
-       else "()")
-      k (type_to_str receiver_t) member
-  | Equality (a, b) ->
-    Printf.printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b)
-  | _ ->
-    Printf.printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
 
 (* AST -> TypedAST *)
 
 let apply_constraints ast constraint_map =
-   let _ = constraint_map |> ConstraintMap.iter (fun k vs ->
-      vs |> List.iter (fun v -> print_constraint k v)
-    ) in ast
-
-(* let apply_constraints ast constraint_map =
-  let rec annotate_expression expr ({ type_reference } as meta) =
-    match type_reference with
-    | TPoly (type_key) -> 
-      let bound_type = ConstraintMap.mem type_key constraint_map in
-      if bound_type then
-        let literal_constraint = constraint_map
-                                 |> ConstraintMap.find(type_key)
-                                 |> List.find_opt (function | Literal(_) -> true | _ -> false) in
-        (match literal_constraint with
-        | Some(Literal(t)) -> (expr, { meta with type_reference = t; level = 0 })
-        | _ -> (expr, meta))
-      else (expr, meta)
-    | _ -> (expr, meta)
+  let annotate_expression expr ({ type_reference } as meta) =
+    (expr, { meta with type_reference = Disjoint_set.find type_reference })
   in let (expr, meta) = ast in
-  replace_metadata annotate_expression expr meta *)
-
-let rec to_typed_ast core_expr =
-  let constraint_map = ConstraintMap.empty in
-  let annotations = annotate core_expr in
-  let constraints = build_constraints constraint_map annotations in
-  apply_constraints annotations constraints
+  replace_metadata annotate_expression expr meta
 
 (* Printer Utility *)
 
 module Printer = struct
-  open Core
+  open Printf
 
   let rec print_typed_expr ~indent outc = function
     | ExprCall (receiver, meth, args) ->
       printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth;
-      (args |> List.iteri ~f:(fun i expr -> print_expression ~indent:(indent+2) outc expr))
+      (args |> List.iteri (fun i expr -> print_expression ~indent:(indent+2) outc expr))
     | ExprFunc (name, args, body) ->
       printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
     | ExprLambda (args, body) ->
@@ -260,12 +218,37 @@ module Printer = struct
     let { expr_loc; type_reference; level } = metadata in
     (* printf "# %a\n" Location.print_loc expr_loc; *)
     printf "%*s(%s : %a)" indent " "
-      begin
-        if !(type_reference.parent).elem = type_reference.elem
-        then (type_to_str type_reference.elem)
-        else sprintf "%s [%s]" (type_to_str (Disjoint_set.find type_reference).elem) (type_to_str type_reference.elem)
-      end
+      (type_to_str type_reference.elem)
       (print_typed_expr ~indent:indent)
       expr;
     if (indent = 1) then printf "\n"
+
+  let print_constraint k v =
+    match v with
+    | FunctionApplication (member, args, receiver_t) ->
+      printf "\027[31m[CONSTRAINT: FunctionApplication (%s -> %s =Fn { %s.%s })]\027[m\n"
+        (if List.length args > 0 then 
+          (String.concat " -> " (List.map (fun arg ->
+            type_to_str (Disjoint_set.find arg).elem) args))
+        else "()")
+        k (type_to_str (Disjoint_set.find receiver_t).elem) member
+    | Literal _ | Equality _ -> ()
+    (* | Literal (t) ->
+      printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
+    | Equality (a, b) ->>
+      printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b) *)
+    | _ ->
+      printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
+
+  let print_constraint_map constraint_map =
+    constraint_map |> ConstraintMap.iter (fun k vs ->
+      vs |> List.iter (fun v -> print_constraint k v)
+    )
 end
+
+let rec to_typed_ast core_expr =
+  let constraint_map = ConstraintMap.empty in
+  let annotations = annotate core_expr in
+  let constraints = build_constraints constraint_map annotations in
+  let _ = Printer.print_constraint_map constraints in
+  apply_constraints annotations constraints
