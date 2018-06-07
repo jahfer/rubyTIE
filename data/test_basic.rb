@@ -22,6 +22,8 @@ end
 
 def sum2(thing1, thing2) end
 
+def maybe_sum(a, b, should_do_thing) end
+
 false
 
 y = [1,2,3]
@@ -40,6 +42,7 @@ a = b
 
 sum1(5)
 sum2(1,2)
+maybe_sum(3, 5, false)
 
 -> (local, _x) {
   local.first()
