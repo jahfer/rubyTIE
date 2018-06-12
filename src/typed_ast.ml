@@ -17,9 +17,11 @@ type t =
   | TLambda of t list * t
   | TFunc of t list * t
 
+type t_node = t Disjoint_set.t
+
 type metadata = {
   expr_loc : Location.t;
-  type_reference : t Disjoint_set.t;
+  type_reference : t_node;
   level : int;
 }
 
@@ -56,8 +58,8 @@ let gen_fresh_t () =
 let annotate expression =
   let rec annotate_expression expr location_meta =
     let t = gen_fresh_t () in
-    let wrapped_t = Disjoint_set.make t in
-    (expr, { expr_loc = location_meta; type_reference = wrapped_t; level = 0 })
+    let t_node = Disjoint_set.make t in
+    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 
@@ -119,14 +121,15 @@ let rec typeof_expr = function
   | ExprConstAssign (_, (_, metadata)) ->
     let { type_reference } = metadata in type_reference
 
-(* TODO: Reference `t Disjoint_set.t` instead of naked `t` *)
+(* TODO: Reference `t_node` instead of naked `t` *)
 type constraint_t =
-  | Literal of t Disjoint_set.t
-  | FunctionApplication of string * t Disjoint_set.t list * t Disjoint_set.t (* member name, args, return value *)
-  | Equality of t Disjoint_set.t * t Disjoint_set.t
+  | Binding of string * t_node
+  | Literal of t_node
+  | FunctionApplication of string * t_node list * t_node (* member name, args, return value *)
+  | Equality of t_node * t_node
   | Disjuction of constraint_t list
-  | Overload of t Disjoint_set.t
-  | Class of t Disjoint_set.t
+  | Overload of t_node
+  | Class of t_node
 
 module ConstraintMap = Map.Make (String)
 
@@ -146,8 +149,9 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
     | ExprIVarAssign (v, ((_, metadata) as iexpr))
     | ExprConstAssign (v, ((_, metadata) as iexpr)) ->
       Disjoint_set.union type_reference metadata.type_reference;
-      let constraint_map = build_constraints constraint_map iexpr in
       let typ = typeof_expr expr in 
+      let constraint_map = build_constraints constraint_map iexpr
+      |> append_constraint type_key (Binding (v, type_reference)) in
       begin match typ.elem with
       | TPoly t ->
         append_constraint t (Equality (typ, type_reference)) constraint_map
@@ -176,7 +180,6 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
   | _ -> constraint_map
 
 (* AST -> TypedAST *)
-
 let apply_constraints ast constraint_map =
   let annotate_expression expr ({ type_reference } as meta) =
     (expr, { meta with type_reference = Disjoint_set.find type_reference })
@@ -232,6 +235,8 @@ module Printer = struct
             type_to_str (Disjoint_set.find arg).elem) args))
         else "")
         k (type_to_str (Disjoint_set.find receiver_t).elem) member
+    | Binding (name, t) ->
+      printf "\027[31m[CONSTRAINT: Binding (%s = %s)]\027[m\n" name (type_to_str (Disjoint_set.find t).elem)
     | Literal _ | Equality _ -> ()
     (* | Literal (t) ->
       printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
