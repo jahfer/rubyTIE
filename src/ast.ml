@@ -107,9 +107,10 @@ module Printer = struct
 
   and print_hash outc obj =
     Out_channel.output_string outc "{ ";
-    List.iter ~f:(fun (key, value) ->
-        printf "%a: %a, " print_value key print_value value) obj;
-    Out_channel.output_string outc "}"
+    List.iteri ~f:(fun i (key, value) ->
+        if (i <> 0) then printf ", ";
+        printf "%a: %a" print_value key print_value value) obj;
+    Out_channel.output_string outc " }"
 
   and print_list outc arr =
     List.iteri ~f:(fun i v ->

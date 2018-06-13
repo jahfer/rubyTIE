@@ -17,11 +17,11 @@ type t =
   | TLambda of t list * t
   | TFunc of t list * t
 
-type t_node = t Disjoint_set.t
+module TypeTree = Disjoint_set
 
 type metadata = {
   expr_loc : Location.t;
-  type_reference : t_node;
+  type_reference : t TypeTree.t;
   level : int;
 }
 
@@ -58,29 +58,30 @@ let gen_fresh_t () =
 let annotate expression =
   let rec annotate_expression expr location_meta =
     let t = gen_fresh_t () in
-    let t_node = Disjoint_set.make t in
-    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
+    let t_nodeT = TypeTree.make t in
+    (expr, { expr_loc = location_meta; type_reference = t_nodeT; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 
 (* Constraint Generation *)
 
 (* TODO: One record per subtype *)
-let disjoint_set_t =
+let type_tree_node =
   let 
-  t_hash = Disjoint_set.make THash and
-  t_bool = Disjoint_set.make TBool and
-  t_float = Disjoint_set.make TFloat and
-  t_int = Disjoint_set.make TInt and
-  t_array = Disjoint_set.make @@ TArray (TAny) and
-  t_nil = Disjoint_set.make TNil and
-  t_string = Disjoint_set.make TString and
-  t_symbol = Disjoint_set.make TSymbol and
-  t_const = Disjoint_set.make @@ TConst (TAny) and
-  t_any = Disjoint_set.make TAny and
-  t_poly = Disjoint_set.make @@ TPoly ("x") and
-  t_lambda = Disjoint_set.make @@ TLambda ([TAny], TAny) and
-  t_func = Disjoint_set.make @@ TFunc ([TAny], TAny) in
+  t_hash = TypeTree.make THash and
+  t_bool = TypeTree.make TBool and
+  t_float = TypeTree.make TFloat and
+  t_int = TypeTree.make TInt and
+  t_array = TypeTree.make @@ TArray (TAny) and
+  t_nil = TypeTree.make TNil and
+  t_string = TypeTree.make TString and
+  t_symbol = TypeTree.make TSymbol and
+  t_const = TypeTree.make @@ TConst (TAny) and
+  t_any = TypeTree.make TAny and
+  t_poly = TypeTree.make @@ TPoly ("x") and
+  (* TODO bind on types, not generics! *)
+  t_lambda = TypeTree.make @@ TLambda ([TAny], TAny) and
+  t_func = TypeTree.make @@ TFunc ([TAny], TAny) in
   function
   | THash -> incr t_hash.rank; t_hash
   | TBool -> incr t_bool.rank; t_bool
@@ -111,7 +112,7 @@ let rec typeof_expr = function
   | ExprVar ((_, value))
   | ExprIVar ((_, value))
   | ExprConst ((_, value), _)
-  | ExprValue (value) -> disjoint_set_t @@ typeof_value value
+  | ExprValue (value) -> type_tree_node @@ typeof_value value
   | ExprFunc (_, _, (_, metadata))
   | ExprLambda (_, (_, metadata))
   | ExprBlock (_, (_, metadata))
@@ -121,15 +122,15 @@ let rec typeof_expr = function
   | ExprConstAssign (_, (_, metadata)) ->
     let { type_reference } = metadata in type_reference
 
-(* TODO: Reference `t_node` instead of naked `t` *)
+(* TODO: Reference `t TypeTree.t` instead of naked `t` *)
 type constraint_t =
-  | Binding of string * t_node
-  | Literal of t_node
-  | FunctionApplication of string * t_node list * t_node (* member name, args, return value *)
-  | Equality of t_node * t_node
+  | Binding of string * t TypeTree.t
+  | Literal of t TypeTree.t
+  | FunctionApplication of string * t TypeTree.t list * t TypeTree.t (* member name, args, return value *)
+  | Equality of t TypeTree.t * t TypeTree.t
   | Disjuction of constraint_t list
-  | Overload of t_node
-  | Class of t_node
+  | Overload of t TypeTree.t
+  | Class of t TypeTree.t
 
 module ConstraintMap = Map.Make (String)
 
@@ -142,23 +143,23 @@ let append_constraint k c map =
 let rec build_constraints constraint_map (expr, { type_reference; level }) =
   let build_constraint type_key = function
     | ExprValue(v) ->
-      Disjoint_set.union (disjoint_set_t @@ typeof_value v) type_reference;
+      TypeTree.union (type_tree_node @@ typeof_value v) type_reference;
       constraint_map
-      |> append_constraint type_key (Literal (disjoint_set_t @@ typeof_value v))
+      |> append_constraint type_key (Literal (type_tree_node @@ typeof_value v))
     | ExprAssign (v, ((_, metadata) as iexpr))
     | ExprIVarAssign (v, ((_, metadata) as iexpr))
     | ExprConstAssign (v, ((_, metadata) as iexpr)) ->
-      Disjoint_set.union type_reference metadata.type_reference;
+      TypeTree.union type_reference metadata.type_reference;
       let typ = typeof_expr expr in 
       let constraint_map = build_constraints constraint_map iexpr
       |> append_constraint type_key (Binding (v, type_reference)) in
       begin match typ.elem with
       | TPoly t ->
         append_constraint t (Equality (typ, type_reference)) constraint_map
-      | TLambda (_, (TPoly(t) as poly_t)) ->
+      (* | TLambda (_, (TPoly(t) as poly_t)) ->
         constraint_map
-        |> append_constraint t (Equality ((disjoint_set_t poly_t), type_reference))
-        |> append_constraint type_key (Literal typ)
+        |> append_constraint t (Equality ((type_tree_node poly_t), type_reference))
+        |> append_constraint type_key (Literal typ) *)
       | _ ->
         (* Never reached *)
         append_constraint type_key (Literal typ) constraint_map
@@ -170,10 +171,12 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
       List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) ->
-      let (_, {type_reference = return_type_wrapper}) = expression in
-      let return_t = return_type_wrapper.elem in
+      let (_, {type_reference = return_type_node}) = expression in
+      let return_t = (TypeTree.find return_type_node).elem in
+      let typ = type_tree_node @@ TLambda([TAny], return_t) in
+      let _ = TypeTree.union typ type_reference in
       build_constraints constraint_map expression
-      |> append_constraint type_key (Literal(disjoint_set_t @@ TLambda([TAny], return_t)))
+      |> append_constraint type_key (Literal(typ))
     | _ -> constraint_map
   in match (level, type_reference.elem) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
@@ -182,7 +185,7 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
 (* AST -> TypedAST *)
 let apply_constraints ast constraint_map =
   let annotate_expression expr ({ type_reference } as meta) =
-    (expr, { meta with type_reference = Disjoint_set.find type_reference })
+    (expr, { meta with type_reference = TypeTree.find type_reference })
   in let (expr, meta) = ast in
   replace_metadata annotate_expression expr meta
 
@@ -232,16 +235,16 @@ module Printer = struct
       printf "\027[31m[CONSTRAINT: FunctionApplication ((%s) -> %s =Fn { %s.%s })]\027[m\n"
         (if List.length args > 0 then 
           (String.concat ", " (List.map (fun arg ->
-            type_to_str (Disjoint_set.find arg).elem) args))
+            type_to_str (TypeTree.find arg).elem) args))
         else "")
-        k (type_to_str (Disjoint_set.find receiver_t).elem) member
+        k (type_to_str (TypeTree.find receiver_t).elem) member
     | Binding (name, t) ->
-      printf "\027[31m[CONSTRAINT: Binding (%s = %s)]\027[m\n" name (type_to_str (Disjoint_set.find t).elem)
+      printf "\027[31m[CONSTRAINT: Binding (%s = %s)]\027[m\n" name (type_to_str t.elem)
     | Literal _ | Equality _ -> ()
     (* | Literal (t) ->
-      printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t)
-    | Equality (a, b) ->>
-      printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a) (type_to_str b) *)
+      printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t.elem)
+    | Equality (a, b) ->
+      printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a.elem) (type_to_str b.elem) *)
     | _ ->
       printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
 
@@ -249,6 +252,9 @@ module Printer = struct
     constraint_map |> ConstraintMap.iter (fun k vs ->
       vs |> List.iter (fun v -> print_constraint k v)
     )
+
+  let debug_union (a : t TypeTree.t) (b : t TypeTree.t) =
+    Printf.printf "-- Unifying %s and %s\n" (type_to_str a.elem) (type_to_str b.elem)
 end
 
 let rec to_typed_ast core_expr =
