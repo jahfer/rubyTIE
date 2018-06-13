@@ -1,4 +1,4 @@
-# Typed Ruby
+# Ruby Type Inference Engine (TIE)
 Very much a work-in-progress. I have no idea what I'm doing.
 
 ## Example
