@@ -6,7 +6,7 @@ type 'a t = {
   root : bool;
 }
 
-exception Incompatible_type of string
+exception Incompatible_nodes
 
 let make elem ~root =
   let rec x = {
@@ -27,10 +27,7 @@ let union x y =
   let y_root = find(y) in
 
   if x_root.root && y_root.root then
-    let err_msg = Printf.sprintf "Incompatible types! Type %s is not compatible with type %s" 
-        (Printer.type_to_str x_root.elem)
-        (Printer.type_to_str y_root.elem) in
-    raise (Incompatible_type err_msg)
+    raise Incompatible_nodes
   else begin
     if x_root.elem <> y_root.elem then
       let (x_root, y_root) = if not x_root.root && (x_root).rank < (y_root).rank
