@@ -32,6 +32,8 @@ Type `bool` is not compatible with type `int`
       |     ^ but then used as `bool` here
 ```
 
+### Kitchen Sink
+
 **Input**
 ```ruby
 foo
