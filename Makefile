@@ -1,5 +1,5 @@
 format = exe
-file = data/test_basic.rb
+file = data/test_kitchen_sink.rb
 
 build:
 	jbuilder build bin/cli.$(format)

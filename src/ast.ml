@@ -53,7 +53,7 @@ let rec replace_metadata fn expr meta =
       in ExprBlock (a, b)
   in fn new_expr meta
 
-module Printer = struct
+module AstPrinter = struct
   open Core
 
   let rec print_cexpr outc (expr, _) =
@@ -86,14 +86,14 @@ module Printer = struct
 
   and print_value outc = function
     | Hash obj     -> print_hash outc obj
-    | Array l      -> printf "(array %a)" print_list l
-    | String s     -> printf "(str \"%s\")" s
-    | Symbol s     -> printf "(sym `%s)" s
-    | Int i        -> printf "(int %d)" i
-    | Float x      -> printf "(float %f)" x
-    | Bool true    -> Out_channel.output_string outc "(true)"
-    | Bool false   -> Out_channel.output_string outc "(false)"
-    | Nil          -> Out_channel.output_string outc "(nil)"
+    | Array l      -> printf "[%a]" print_list l
+    | String s     -> printf "\"%s\"" s
+    | Symbol s     -> printf ":%s" s
+    | Int i        -> printf "%d" i
+    | Float x      -> printf "%f" x
+    | Bool true    -> Out_channel.output_string outc "true"
+    | Bool false   -> Out_channel.output_string outc "false"
+    | Nil          -> Out_channel.output_string outc "nil"
     | Any          -> printf "?"
 
   and print_args outc arr =
@@ -106,10 +106,11 @@ module Printer = struct
     end else printf "()"
 
   and print_hash outc obj =
-    Out_channel.output_string outc "(hash";
-    List.iter ~f:(fun (key, value) ->
-        printf " (pair %a %a)" print_value key print_value value) obj;
-    Out_channel.output_string outc ")"
+    Out_channel.output_string outc "{ ";
+    List.iteri ~f:(fun i (key, value) ->
+        if (i <> 0) then printf ", ";
+        printf "%a: %a" print_value key print_value value) obj;
+    Out_channel.output_string outc " }"
 
   and print_list outc arr =
     List.iteri ~f:(fun i v ->

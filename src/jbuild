@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (library
-  ((name typed_ruby)
-   (public_name typed_ruby)
+  ((name ruby_tie)
+   (public_name ruby_tie)
    (flags (:standard -warn-error A))
    (libraries (core))))
 

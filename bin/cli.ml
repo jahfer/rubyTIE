@@ -2,7 +2,7 @@ open Core
 open Cmdliner
 
 let rbt filename =
-  `Ok(Typed_ruby.parse_from_filename filename)
+  `Ok(Ruby_tie.parse_from_filename filename)
 
 let srcs =
   let doc = "Source file(s) to copy." in

@@ -2,4 +2,4 @@
 
 (executable
   ((name cli)
-   (libraries (core cmdliner typed_ruby))))
+   (libraries (core cmdliner ruby_tie))))
