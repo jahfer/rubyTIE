@@ -1,7 +1,37 @@
 # Typed Ruby
 Very much a work-in-progress. I have no idea what I'm doing.
 
-## Example
+## Examples
+
+### Type Checking
+
+**Input**
+```ruby
+x = 5
+y = false
+y = x
+```
+
+
+**Output**
+```
+ (int : lvasgn `x
+  (int : 5))
+
+ (bool : lvasgn `y
+  (bool : false))
+
+-- TYPE ERROR ----------------------------------------
+
+Type `bool` is not compatible with type `int`
+     ...
+     1| x = 5
+      |     ^ type is initialized as `int` here
+     ...
+     3| y = x
+      |     ^ but then used as `bool` here
+```
+
 **Input**
 ```ruby
 foo

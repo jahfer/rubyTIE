@@ -33,9 +33,11 @@ let rec typeof_value = function
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
+type type_reference = (t, Location.t) TypeTree.t
+
 type metadata = {
   expr_loc : Location.t;
-  type_reference : t TypeTree.t;
+  type_reference : type_reference;
   level : int;
 }
 

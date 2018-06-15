@@ -27,11 +27,31 @@ let parse_with_error lexbuf =
     fprintf stderr "%a: syntax error ('%s')\n" print_position lexbuf tok;
     exit (-1)
 
+let print_type_error a b =
+  printf "-- TYPE ERROR %s\n\n" (String.make 40 '-');
+  printf "Type `%s` is not compatible with type `%s`\n"
+    (Printer.type_to_str (Disjoint_set.find a).elem)
+    (Printer.type_to_str (Disjoint_set.find b).elem);
+  let () = match b.metadata with
+    | Some (loc) -> 
+      Location.print_loc loc;
+      printf " type is initialized as `%s` here\n" (Printer.type_to_str (Disjoint_set.find b).elem);
+    | None -> ()
+  in
+  match a.metadata with
+  | Some (loc) ->
+    Location.print_loc loc;
+    printf " but then used as `%s` here\n" (Printer.type_to_str (Disjoint_set.find a).elem)
+  | None -> ()
+
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some (expr) -> let open Typed_ast in
-    let typed_ast = to_typed_ast (expr) in
-    printf "%a\n" (ExpressionPrinter.print_expression ~indent:1) typed_ast;
+    let typed_ast = try (to_typed_ast expr) with
+      | Constraint_engine.TypeError (a, b) ->
+        print_type_error a b;
+        exit (-1)
+    in printf "%a\n" (ExpressionPrinter.print_expression ~indent:1) typed_ast;
     parse_and_print lexbuf
   | None -> ()
 

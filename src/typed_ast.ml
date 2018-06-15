@@ -6,16 +6,13 @@ open Types
 module TypeTree = Disjoint_set
 
 (* Annotations *)
-
-module Annotations = struct
-  let annotate expression =
-    let rec annotate_expression expr location_meta =
-      let t = Types.gen_fresh_t () in
-      let t_node = TypeTree.make t ~root:false in
-      (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
-    in let (expr, location_meta) = expression in
-    replace_metadata annotate_expression expr location_meta
-end
+let annotate expression =
+  let rec annotate_expression expr location_meta =
+    let t = Types.gen_fresh_t () in
+    let t_node = TypeTree.make ~root:false (Some location_meta) t in
+    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
+  in let (expr, location_meta) = expression in
+  replace_metadata annotate_expression expr location_meta
 
 (* AST -> TypedAST *)
 let apply_constraints ast constraint_map =
@@ -28,7 +25,7 @@ let apply_constraints ast constraint_map =
 
 module ExpressionPrinter = struct
   open Types
-  open Typed_ruby__Printer
+  open Ruby_tie__Printer
   open Printf
 
   let rec print_typed_expr ~indent outc = function
@@ -36,9 +33,9 @@ module ExpressionPrinter = struct
       printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth;
       (args |> List.iteri (fun i expr -> print_expression ~indent:(indent+2) outc expr))
     | ExprFunc (name, args, body) ->
-      printf "def `%s %a %a" name Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
+      printf "def `%s %a %a" name Ast.AstPrinter.print_args args (print_expression ~indent:(indent+1)) body
     | ExprLambda (args, body) ->
-      printf "lambda %a %a" Ast.Printer.print_args args (print_expression ~indent:(indent+1)) body
+      printf "lambda %a %a" Ast.AstPrinter.print_args args (print_expression ~indent:(indent+1)) body
     | ExprVar ((name, value))  ->
       printf "lvar `%s" name
     | ExprConst ((name, value), base) ->
@@ -52,7 +49,7 @@ module ExpressionPrinter = struct
     | ExprConstAssign (name, expr) ->
       printf "casgn %s %a" name (print_expression ~indent:(indent+1)) expr
     | ExprValue (value) ->
-      printf "%a" Ast.Printer.print_value value
+      printf "%a" Ast.AstPrinter.print_value value
     | ExprBlock (expr1, expr2) ->
       printf "%a %a" (print_expression ~indent:(indent+1)) expr1 (print_expression ~indent:(indent+1)) expr2
 
@@ -90,16 +87,12 @@ module ExpressionPrinter = struct
     constraint_map |> Constraint_engine.ConstraintMap.iter (fun k vs ->
         vs |> List.iter (fun v -> print_constraint k v)
       )
-
-  let debug_union (a : Types.t TypeTree.t) (b : Types.t TypeTree.t) =
-    Printf.printf "-- Unifying %s and %s\n" (type_to_str a.elem) (type_to_str b.elem)
 end
 
-let rec to_typed_ast core_expr =
+let rec to_typed_ast expression =
   let open Constraint_engine in
   let constraint_map = ConstraintMap.empty in
-  (* let reference_map = ReferenceMap.empty in *)
-  let annotations = Annotations.annotate core_expr in
+  let annotations = annotate expression in
   let constraints = build_constraints constraint_map annotations in
   let _ = ExpressionPrinter.print_constraint_map constraints in
   apply_constraints annotations constraints

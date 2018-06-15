@@ -53,7 +53,7 @@ let rec replace_metadata fn expr meta =
       in ExprBlock (a, b)
   in fn new_expr meta
 
-module Printer = struct
+module AstPrinter = struct
   open Core
 
   let rec print_cexpr outc (expr, _) =

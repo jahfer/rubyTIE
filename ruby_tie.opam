@@ -7,5 +7,5 @@ bug-reports: "https://github.com/jahfer/typed-ruby/issues"
 dev-repo: "https://github.com/jahfer/typed-ruby.git"
 license: "MIT"
 build: [
-  ["jbuilder" "build" "--only" "typed_ruby" "--root" "." "-j" jobs "@install"]
+  ["jbuilder" "build" "--only" "ruby_tie" "--root" "." "-j" jobs "@install"]
 ]
