@@ -33,7 +33,7 @@ let print_type_error a b =
     (Printer.type_to_str (Disjoint_set.find a).elem)
     (Printer.type_to_str (Disjoint_set.find b).elem);
   let () = match b.metadata with
-    | Some (loc) -> 
+    | Some (loc) ->
       Location.print_loc loc;
       printf " type is initialized as `%s` here\n" (Printer.type_to_str (Disjoint_set.find b).elem);
     | None -> ()
@@ -41,7 +41,7 @@ let print_type_error a b =
   match a.metadata with
   | Some (loc) ->
     Location.print_loc loc;
-    printf " but then used as `%s` here\n" (Printer.type_to_str (Disjoint_set.find a).elem)
+    printf " but used as `%s` here\n" (Printer.type_to_str (Disjoint_set.find a).elem)
   | None -> ()
 
 let rec parse_and_print lexbuf =

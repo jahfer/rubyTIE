@@ -7,29 +7,34 @@ Very much a work-in-progress. I have no idea what I'm doing.
 
 **Input**
 ```ruby
-x = 5
+b = 3
+a = b
+
 y = false
-y = x
+
+a = y
 ```
 
 
 **Output**
 ```
- (int : lvasgn `x
-  (int : 5))
+ (int : lvasgn `b (int : 3))
 
- (bool : lvasgn `y
-  (bool : false))
+ (int : lvasgn `a (int : lvar `b))
+
+ (int : lvasgn `x (int : 5))
+
+ (bool : lvasgn `y (bool : false))
 
 -- TYPE ERROR ----------------------------------------
 
-Type `bool` is not compatible with type `int`
+Type `int` is not compatible with type `bool`
      ...
-     1| x = 5
-      |     ^ type is initialized as `int` here
+     5| y = false
+      |     ^^^^^ type is initialized as `bool` here
      ...
-     3| y = x
-      |     ^ but then used as `bool` here
+     7| a = y
+      |     ^ but used as `int` here
 ```
 
 ### Kitchen Sink
