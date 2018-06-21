@@ -1,3 +1,6 @@
+b = 3
+a = b
+
 x = 5
 y = false
-y = x
+x = y

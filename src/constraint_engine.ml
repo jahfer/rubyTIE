@@ -61,7 +61,9 @@ let append_constraint k c map =
 
 let rec build_constraints constraint_map (expr, { type_reference; level }) =
   let build_constraint type_key = function
-    | ExprVar(name, v) ->
+    | ExprVar(name, _)
+    | ExprIVar(name, _)
+    | ExprConst((name, _), _) ->
       if Hashtbl.mem reference_table name
       then unify_types type_reference (Hashtbl.find reference_table name)
       else Hashtbl.add reference_table name type_reference;

@@ -9,6 +9,8 @@ type value =
   | Nil
   | Any
 
+and id = string * value
+
 and 'a expr =
   | ExprCall of 'a expression * string * 'a expression list (* receiver, method, args *)
   | ExprFunc of string * id list * 'a expression (* name, args, body *)
@@ -22,7 +24,6 @@ and 'a expr =
   | ExprConstAssign of string * 'a expression
   | ExprBlock of 'a expression * 'a expression
 
-and id = string * value
 and 'a expression = 'a expr * 'a
 
 let rec replace_metadata fn expr meta =
