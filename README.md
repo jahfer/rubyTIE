@@ -6,34 +6,30 @@ Very much a work-in-progress. I have no idea what I'm doing.
 ### Type Checking
 
 **Input**
-```ruby
-b = 3
-a = b
-
-y = false
-
-a = y
+```
+1| b = 3
+2| a = b
+3|
+4| y = false
+5|
+6| a = y
 ```
 
 
 **Output**
 ```
- (int : lvasgn `b (int : 3))
-
- (int : lvasgn `a (int : lvar `b))
-
- (int : lvasgn `x (int : 5))
-
- (bool : lvasgn `y (bool : false))
+(int : lvasgn `b (int : 3))
+(int : lvasgn `a (int : lvar `b))
+(bool : lvasgn `y (bool : false))
 
 -- TYPE ERROR ----------------------------------------
 
 Type `int` is not compatible with type `bool`
      ...
-     5| y = false
+     4| y = false
       |     ^^^^^ type is initialized as `bool` here
      ...
-     7| a = y
+     6| a = y
       |     ^ but used as `int` here
 ```
 
