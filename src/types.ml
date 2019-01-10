@@ -14,7 +14,7 @@ type t =
   | TAny
   | TPoly of string
   | TLambda of t list * t
-  | TFunc of t list * t
+  | TUnion of t * t
 
 let current_var = ref 1
 let gen_fresh_t () =
@@ -47,7 +47,7 @@ let rec typeof_expr = let open Ast in function
     | ExprVar ((_, value))
     | ExprIVar ((_, value))
     | ExprConst ((_, value), _)
-    | ExprValue (value) -> 
+    | ExprValue (value) ->
       RawType(typeof_value value)
     | ExprFunc (_, _, (_, metadata))
     | ExprLambda (_, (_, metadata))
