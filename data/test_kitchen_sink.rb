@@ -33,7 +33,7 @@ z = y.first
 func1 = -> { x = 45 }
 func2 = -> (local) { }
 func3 = -> (local, _x) {
-  local.first()
+  local.first
 }
 func3.call(y)
 
@@ -45,5 +45,5 @@ sum2(1,2)
 maybe_sum(3, 5, false)
 
 -> (local, _x) {
-  local.first()
+  local.first
 }

@@ -68,7 +68,7 @@ module ExpressionPrinter = struct
     match v with
     | FunctionApplication (member, args, receiver_t) ->
       printf "\027[31m[CONSTRAINT: FunctionApplication ((%s) -> %s =Fn { %s.%s })]\027[m\n"
-        (if List.length args > 0 then 
+        (if List.length args > 0 then
            (String.concat ", " (List.map (fun arg ->
                 type_to_str (TypeTree.find arg).elem) args))
          else "")
@@ -88,11 +88,3 @@ module ExpressionPrinter = struct
         vs |> List.iter (fun v -> print_constraint k v)
       )
 end
-
-let rec to_typed_ast expression =
-  let open Constraint_engine in
-  let constraint_map = ConstraintMap.empty in
-  let annotations = annotate expression in
-  let constraints = build_constraints constraint_map annotations in
-  let _ = ExpressionPrinter.print_constraint_map constraints in
-  apply_constraints annotations constraints
