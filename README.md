@@ -9,30 +9,27 @@ Very much a work-in-progress. I have no idea what I'm doing.
 **Input**
 
 ```
-1| b = 3
-2| a = b
+1| x = false
+2| y = 3
 3|
-4| y = false
-5|
-6| a = y
+4| a = x
+5| a = y
 ```
 
 **Output**
 
 ```
-(int : lvasgn `b (int : 3))
-(int : lvasgn `a (int : lvar `b))
-(bool : lvasgn `y (bool : false))
+(bool : lvasgn `x
+  (bool : false))
 
--- TYPE ERROR ----------------------------------------
+(int : lvasgn `y
+  (int : 3))
 
-Type `int` is not compatible with type `bool`
-     ...
-     4| y = false
-      |     ^^^^^ type is initialized as `bool` here
-     ...
-     6| a = y
-      |     ^ but used as `int` here
+(bool : lvasgn `a
+  (bool : lvar `x))
+
+(bool|int : lvasgn `a
+  (bool|int : lvar `y))
 ```
 
 ### Kitchen Sink

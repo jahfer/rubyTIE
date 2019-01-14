@@ -48,15 +48,32 @@ module ConstraintMap = Map.Make (String)
 
 let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
+let union_p a =
+  match (TypeTree.find a).elem with
+  | TUnion(_) -> true
+  | _ -> false
+
+let child_of_union_p a union_node =
+  let { elem } : ('a, 'b) TypeTree.t = (TypeTree.find a) in
+  match (TypeTree.find union_node).elem with
+  | TUnion(x, y) -> x == elem || y == elem
+  | _ -> false
+
 let unify_types a b =
   let open TypeTree in
-  (* Printf.printf "-- %s & %s\n" (Printer.print_inheritance a) (Printer.print_inheritance b); *)
+  Printf.printf "-- %s &\n-- %s\n\n" (Printer.print_inheritance a) (Printer.print_inheritance b);
   (* TODO Better union support *)
-  try union_exn a b with Incompatible_nodes ->
-    let union_t = TUnion((TypeTree.find a).elem, (TypeTree.find b).elem) in
-    let union_t_node = TypeTree.make ~root:true a.metadata union_t in
-    try (union union_t_node a) with
-      Incompatible_nodes -> raise (TypeError (a, b))
+  try union a b with Incompatible_nodes ->
+    if union_p a then begin
+      if (a |> child_of_union_p b) then find a |> replace_root b
+    end
+    else if union_p b then begin
+      if (b |> child_of_union_p a) then find b |> replace_root a
+    end
+    else
+      let union_t = TUnion((find a).elem, (find b).elem) in
+      let union_t_node = TypeTree.make ~root:true a.metadata union_t in
+      replace_root a union_t_node
 
 let unify_types_exn a b = TypeTree.union a b
 
@@ -68,7 +85,7 @@ let append_constraint k c map =
 
 let find_or_insert name t tbl =
   if Hashtbl.mem tbl name
-  then unify_types t (Hashtbl.find tbl name)
+  then (Printf.printf "Found existing type for %s\n" name ; unify_types t (Hashtbl.find tbl name))
   else Hashtbl.add tbl name t
 
 let rec build_constraints constraint_map (expr, { type_reference; level }) =
