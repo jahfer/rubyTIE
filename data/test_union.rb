@@ -1,8 +1,8 @@
-x = false
-y = 3
+x = false   # : bool < x
+y = 3       # : int < y
 
-a = x
-a = y
+a = x       # : bool < T7 < a
+a = y       # : int < T7 < a ... therefore: T7 = bool | int
 
-a
+a           # : T9 < T7
 y

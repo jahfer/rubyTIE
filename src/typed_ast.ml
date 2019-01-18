@@ -17,6 +17,7 @@ let annotate expression =
 (* AST -> TypedAST *)
 let apply_constraints ast constraint_map =
   let annotate_expression expr ({ type_reference } as meta) =
+    (* TODO: Write actual constraint solver *)
     (expr, { meta with type_reference = TypeTree.find type_reference })
   in let (expr, meta) = ast in
   replace_metadata annotate_expression expr meta
@@ -64,6 +65,8 @@ module ExpressionPrinter = struct
     if (indent = 1) then printf "\n"
 
   let print_constraint k v =
+    let format_constraint s = Printf.sprintf "\027[31m%s\027[m" s in
+    let prefix = format_constraint "CONSTRAINT:" in
     let open Constraint_engine in
     match v with
     | FunctionApplication (member, args, receiver_t) ->
@@ -74,14 +77,15 @@ module ExpressionPrinter = struct
          else "")
         k (type_to_str (TypeTree.find receiver_t).elem) member
     | Binding (name, t) ->
-      printf "\027[31m[CONSTRAINT: Binding (%s = %s)]\027[m\n" name (type_to_str t.elem)
-    | Literal _ | Equality _ -> ()
-    (* | Literal (t) ->
-       printf "\027[31m[CONSTRAINT: Literal (%s = %s)]\027[m\n" k (type_to_str t.elem)
-       | Equality (a, b) ->
-       printf "\027[31m[CONSTRAINT: Equality (%s = %s)]\027[m\n" (type_to_str a.elem) (type_to_str b.elem) *)
+      printf "%s Binding (%s = %s)\n" prefix name (type_to_str (TypeTree.find t).elem)
+    | Literal (a, t) ->
+      printf "%s Literal (%s = %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str t)
+    | Equality (a, b) ->
+      printf "%s Equality (%s = %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
+    | SubType (a, b) ->
+      printf "%s SubType (%s < %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
     | _ ->
-      printf "\027[31m[CONSTRAINT: %s => Unknown]\027[m\n" k
+      printf "%s %s => Unknown\n" prefix k
 
   let print_constraint_map constraint_map =
     constraint_map |> Constraint_engine.ConstraintMap.iter (fun k vs ->

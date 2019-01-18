@@ -24,4 +24,4 @@ let rec print_inheritance (x : type_reference) =
   if deref_parent != x then
     Core.sprintf "%s > %s" (print_inheritance !(x.parent)) (type_to_str x.elem)
   else
-    Core.sprintf "[%s]" (type_to_str x.elem)
+    Core.sprintf "[%s {%i}]" (type_to_str x.elem) !(x.rank)

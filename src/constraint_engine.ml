@@ -4,76 +4,27 @@ open Ast
 exception TypeError of type_reference * type_reference
 (* exception AssignmentError of expression * expression *)
 
-(* TODO bind on types, not generics! *)
-let rec type_tree_node =
-  let make_root_node = TypeTree.make ~root:true None in
-  let
-    t_hash = make_root_node THash and
-    t_bool = make_root_node TBool and
-    t_float = make_root_node TFloat and
-    t_int = make_root_node TInt and
-    t_array = make_root_node (TArray TAny) and
-    t_nil = make_root_node TNil and
-    t_string = make_root_node TString and
-    t_symbol = make_root_node TSymbol and
-    t_const = make_root_node (TConst TAny) and
-    t_any = make_root_node TAny and
-    t_poly = make_root_node (TPoly "x") and
-    t_lambda = make_root_node (TLambda ([TAny], TAny)) in
-  function
-  | THash -> incr t_hash.rank; t_hash
-  | TBool -> incr t_bool.rank; t_bool
-  | TFloat -> incr t_float.rank; t_float
-  | TInt -> incr t_int.rank; t_int
-  | TArray _ -> incr t_array.rank; t_array
-  | TNil -> incr t_nil.rank; t_nil
-  | TString -> incr t_string.rank; t_string
-  | TSymbol -> incr t_symbol.rank; t_symbol
-  | TConst _ -> incr t_const.rank; t_const
-  | TAny -> incr t_any.rank; t_any
-  | TPoly _ -> incr t_poly.rank; t_poly
-  | TLambda _ -> incr t_lambda.rank; t_lambda
-  | TUnion (t1, _) -> type_tree_node t1
-
 type constraint_t =
   | Binding of string * type_reference
-  | Literal of type_reference
+  | Literal of type_reference * Types.t
   | FunctionApplication of string * type_reference list * type_reference (* member name, args, return value *)
   | Equality of type_reference * type_reference
   | Disjuction of constraint_t list
   | Overload of type_reference
   | Class of type_reference
+  | SubType of type_reference * type_reference
 
 module ConstraintMap = Map.Make (String)
 
 let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
-let union_p a =
-  match (TypeTree.find a).elem with
-  | TUnion(_) -> true
-  | _ -> false
-
-let child_of_union_p a union_node =
-  let { elem } : ('a, 'b) TypeTree.t = (TypeTree.find a) in
-  match (TypeTree.find union_node).elem with
-  | TUnion(x, y) -> x == elem || y == elem
-  | _ -> false
-
 let unify_types a b =
   let open TypeTree in
   Printf.printf "-- %s &\n-- %s\n\n" (Printer.print_inheritance a) (Printer.print_inheritance b);
-  (* TODO Better union support *)
   try union a b with Incompatible_nodes ->
-    if union_p a then begin
-      if (a |> child_of_union_p b) then find a |> replace_root b
-    end
-    else if union_p b then begin
-      if (b |> child_of_union_p a) then find b |> replace_root a
-    end
-    else
-      let union_t = TUnion((find a).elem, (find b).elem) in
-      let union_t_node = TypeTree.make ~root:true a.metadata union_t in
-      replace_root a union_t_node
+    let union_t = TUnion((find a).elem, (find b).elem) in
+    let union_t_node = TypeTree.make ~root:true a.metadata union_t in
+    replace_root a union_t_node
 
 let unify_types_exn a b = TypeTree.union a b
 
@@ -85,39 +36,51 @@ let append_constraint k c map =
 
 let find_or_insert name t tbl =
   if Hashtbl.mem tbl name
-  then (Printf.printf "Found existing type for %s\n" name ; unify_types t (Hashtbl.find tbl name))
+  then begin
+    Printf.printf "Found existing type for %s\n" name;
+    unify_types t (Hashtbl.find tbl name) (* TODO this should not unify, it should create subtype *)
+  end
   else Hashtbl.add tbl name t
+
+let find_or_insert2 name t tbl =
+  if Hashtbl.mem tbl name
+  then Some(Hashtbl.find tbl name)
+  else (Hashtbl.add tbl name t; None)
 
 let rec build_constraints constraint_map (expr, { type_reference; level }) =
   let build_constraint type_key = function
     | ExprVar(name, _)
     | ExprIVar(name, _)
     | ExprConst((name, _), _) ->
-      reference_table |> find_or_insert name type_reference;
-      constraint_map
+      (* reference_table |> find_or_insert name type_reference; *)
+      let maybe_t = reference_table |> find_or_insert2 name type_reference in
+      begin match maybe_t with
+        | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
+        | None -> constraint_map
+      end
     | ExprValue(v) ->
-      unify_types (type_tree_node @@ typeof_value v) type_reference;
       constraint_map
-      |> append_constraint type_key (Literal (type_tree_node @@ typeof_value v))
+      |> append_constraint type_key (Literal (type_reference, typeof_value v))
     | ExprAssign (name, ((_, metadata) as iexpr))
     | ExprIVarAssign (name, ((_, metadata) as iexpr))
     | ExprConstAssign (name, ((_, metadata) as iexpr)) ->
-      begin try (unify_types_exn type_reference metadata.type_reference) with
-        (* | TypeTree.Incompatible_nodes -> raise (AssignmentError expr) *)
-        | TypeTree.Incompatible_nodes -> raise (TypeError (type_reference, metadata.type_reference))
-      end;
-      let typ = match typeof_expr expr with
-        | RawType t -> type_tree_node t
-        | TypeMetadata (metadata) -> metadata.type_reference in
-      let _ = reference_table |> find_or_insert name typ in
-      let constraint_map = build_constraints constraint_map iexpr
-                           |> append_constraint type_key (Binding (name, type_reference)) in
-      begin match typ.elem with
-        | TPoly t ->
-          unify_types typ type_reference;
-          append_constraint t (Equality (typ, type_reference)) constraint_map
-        | _ -> (* Never reached *)
-          append_constraint type_key (Literal typ) constraint_map
+      begin match typeof_expr expr with
+        | RawType _ -> constraint_map
+        | TypeMetadata (metadata) ->
+          let typ = metadata.type_reference in
+          (* reference_table |> find_or_insert name typ; *)
+          let maybe_t = reference_table |> find_or_insert2 name type_reference in
+          let constraint_map = match maybe_t with
+            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
+            | None -> constraint_map
+          in
+          let constraint_map = build_constraints constraint_map iexpr
+                               |> append_constraint type_key (Binding (name, type_reference)) in
+          begin match metadata.type_reference.elem with
+            | TPoly t ->
+              append_constraint t (SubType (typ, type_reference)) constraint_map
+            | _ -> constraint_map
+          end
       end
     | ExprCall (receiver_expression, meth, args) ->
       let (iexpr, {type_reference = receiver}) = receiver_expression in
@@ -133,10 +96,9 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
     | ExprLambda (_, expression) ->
       let (_, {type_reference = return_type_node}) = expression in
       let return_t = (TypeTree.find return_type_node).elem in
-      let typ = type_tree_node @@ TLambda([TAny], return_t) in
-      let _ = unify_types typ type_reference in
+      let typ = TLambda([TAny], return_t) in
       build_constraints constraint_map expression
-      |> append_constraint type_key (Literal(typ))
+      |> append_constraint type_key (Literal(type_reference, typ))
     | _ -> constraint_map
   in match (level, type_reference.elem) with
   | 0, TPoly (type_key) -> build_constraint type_key expr

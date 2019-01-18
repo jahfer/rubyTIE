@@ -78,6 +78,7 @@ rule read state = parse
   | '}'      { terminating_tok state;      RBRACE }
   | ']'      { terminating_tok state;      RBRACK }
   | ')'      { terminating_tok state;      RPAREN }
+  | '#'      { comment state lexbuf }
   | int      { ack_tok state; INT (int_of_string (Lexing.lexeme lexbuf)) }
   | float    { ack_tok state; FLOAT (float_of_string (Lexing.lexeme lexbuf)) }
   | "true"   { ack_tok state; TRUE }
@@ -97,6 +98,13 @@ rule read state = parse
   }
   | _        { raise (SyntaxError (sprintf "Unexpected char: '%s'" (Lexing.lexeme lexbuf))) }
   | eof      { EOF }
+
+and comment state = parse
+| newline {
+  Lexing.new_line lexbuf;
+  state.at_eos <- true; EOS
+}
+| _ { comment state lexbuf }
 
 and read_string buf = parse
   | '"' { STRING (Buffer.contents buf) }

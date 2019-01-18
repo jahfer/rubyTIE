@@ -56,6 +56,8 @@ let parse_buf_to_ast lexbuf =
       try build_constraints acc x with
       | Constraint_engine.TypeError (a, b) -> print_type_error a b; exit (-1)
     ) untyped_ast constraint_map in
+  Typed_ast.ExpressionPrinter.print_constraint_map constraints;
+  (* Missing constraint simplification step *)
   let typed_ast = List.map (fun ast -> Typed_ast.apply_constraints ast constraints) untyped_ast in
   List.iter (fun ast ->
       Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)
