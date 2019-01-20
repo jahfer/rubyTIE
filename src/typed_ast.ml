@@ -7,16 +7,27 @@ module TypeTree = Disjoint_set
 
 (* Annotations *)
 let annotate expression =
-  let rec annotate_expression expr location_meta =
+  let annotate_expression expr location_meta =
     let t = Types.gen_fresh_t () in
     let t_node = TypeTree.make ~root:false (Some location_meta) t in
     (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 
+(* let simplify constraint_map =
+   let open Constraint_engine in
+   let constraint_mapper = function
+    | FunctionApplication(_) -> ()
+    | _ -> ()
+   in constraint_map |> ConstraintMap.mapi fun
+       (key : string)
+       (constraint_lst : constraint_t list) ->
+       constraint_lst |> List.iter constraint_mapper *)
+
 (* AST -> TypedAST *)
-let apply_constraints ast constraint_map =
-  let annotate_expression expr ({ type_reference } as meta) =
+let apply_constraints ast _constraint_map =
+  (* let constraint_map = simplify constraint_map in *)
+  let annotate_expression expr ({ type_reference; _ } as meta) =
     (* TODO: Write actual constraint solver *)
     (expr, { meta with type_reference = TypeTree.find type_reference })
   in let (expr, meta) = ast in
@@ -32,16 +43,16 @@ module ExpressionPrinter = struct
   let rec print_typed_expr ~indent outc = function
     | ExprCall (receiver, meth, args) ->
       printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth;
-      (args |> List.iteri (fun i expr -> print_expression ~indent:(indent+2) outc expr))
+      (args |> List.iteri (fun _i expr -> print_expression ~indent:(indent+2) outc expr))
     | ExprFunc (name, args, body) ->
       printf "def `%s %a %a" name Ast.AstPrinter.print_args args (print_expression ~indent:(indent+1)) body
     | ExprLambda (args, body) ->
       printf "lambda %a %a" Ast.AstPrinter.print_args args (print_expression ~indent:(indent+1)) body
-    | ExprVar ((name, value))  ->
+    | ExprVar ((name, _value))  ->
       printf "lvar `%s" name
-    | ExprConst ((name, value), base) ->
+    | ExprConst ((name, _value), base) ->
       printf "const %a `%s" (print_expression ~indent:(indent+1)) base name
-    | ExprIVar ((name, value)) ->
+    | ExprIVar ((name, _value)) ->
       printf "ivar `%s" name
     | ExprAssign (name, expr) ->
       printf "lvasgn `%s %a" name (print_expression ~indent:(indent+1)) expr
@@ -54,9 +65,9 @@ module ExpressionPrinter = struct
     | ExprBlock (expr1, expr2) ->
       printf "%a %a" (print_expression ~indent:(indent+1)) expr1 (print_expression ~indent:(indent+1)) expr2
 
-  and print_expression ~indent outc (expr, metadata) =
+  and print_expression ~indent _outc (expr, metadata) =
     if (indent <> 1) then printf "\n";
-    let { expr_loc; type_reference; level } = metadata in
+    let { type_reference; _ } = metadata in
     (* printf "# %a\n" Location.print_loc expr_loc; *)
     printf "%*s(%s : %a)" indent " "
       (type_to_str type_reference.elem)
@@ -70,20 +81,22 @@ module ExpressionPrinter = struct
     let open Constraint_engine in
     match v with
     | FunctionApplication (member, args, receiver_t) ->
-      printf "\027[31m[CONSTRAINT: FunctionApplication ((%s) -> %s =Fn { %s.%s })]\027[m\n"
+      printf "%s %-20s (%s) -> %s =Fn { %s.%s }\n"
+        prefix
+        "FunctionApplication"
         (if List.length args > 0 then
            (String.concat ", " (List.map (fun arg ->
                 type_to_str (TypeTree.find arg).elem) args))
          else "")
         k (type_to_str (TypeTree.find receiver_t).elem) member
     | Binding (name, t) ->
-      printf "%s Binding (%s = %s)\n" prefix name (type_to_str (TypeTree.find t).elem)
+      printf "%s %-20s %s = %s\n" prefix "Binding" name (type_to_str (TypeTree.find t).elem)
     | Literal (a, t) ->
-      printf "%s Literal (%s = %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str t)
+      printf "%s %-20s %s = %s\n" prefix "Literal" (type_to_str (TypeTree.find a).elem) (type_to_str t)
     | Equality (a, b) ->
-      printf "%s Equality (%s = %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
+      printf "%s %-20s %s = %s\n" prefix "Equality" (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
     | SubType (a, b) ->
-      printf "%s SubType (%s < %s)\n" prefix (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
+      printf "%s %-20s %s < %s\n" prefix "SubType" (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
     | _ ->
       printf "%s %s => Unknown\n" prefix k
 

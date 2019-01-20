@@ -13,7 +13,7 @@ let rec type_to_str = function
     Core.sprintf "const<%s>" (type_to_str t)
   | TArray t ->
     Core.sprintf "array<%s>" (type_to_str t)
-  | TLambda (args, ret) ->
+  | TLambda (_args, ret) ->
     Core.sprintf "lambda<? -> %s>" (type_to_str ret)
   | TPoly t ->
     Core.sprintf "%s" t

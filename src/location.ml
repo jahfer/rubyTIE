@@ -7,11 +7,11 @@ type t = {
 
 let pos_column pos = pos.pos_cnum - pos.pos_bol + 1
 
-let print_position outc pos =
+let print_position _outc pos =
   Printf.printf "%s:%i:%i" pos.pos_fname pos.pos_lnum (pos_column pos)
 
-let print_loc outc { start_pos; end_pos } =
-  Printf.printf "[%a - %a]" print_position start_pos print_position end_pos
+(* let print_loc outc { start_pos; end_pos } =
+   Printf.printf "[%a - %a]" print_position start_pos print_position end_pos *)
 
 let slice_opt ic =
   try Some (input_line ic)
@@ -35,7 +35,7 @@ let nth_line n filename =
 let slice_at_location loc =
   nth_line loc.start_pos.pos_lnum loc.start_pos.pos_fname
 
-let print_loc loc = 
+let print_loc loc =
   let open Printf in
   printf "%5s...\n" " ";
   printf "%6d| %s\n" loc.start_pos.pos_lnum (slice_at_location loc);

@@ -57,22 +57,22 @@ let rec replace_metadata fn expr meta =
 module AstPrinter = struct
   open Core
 
-  let rec print_cexpr outc (expr, _) =
+  let rec print_cexpr _outc (expr, _) =
     (* printf "%a\n" Location.print_loc expr_loc; *)
     printf "%a" print_ast expr
 
-  and print_ast outc = function
-    | ExprCall (receiver, meth, args) ->
+  and print_ast _outc = function
+    | ExprCall (receiver, meth, _args) ->
       printf "(send %a `%s)" print_cexpr receiver meth
     | ExprFunc (name, args, body) ->
       printf "(def `%s %a %a)" name print_args args print_cexpr body
     | ExprLambda (args, body) ->
       printf "(lambda %a %a)" print_args args print_cexpr body
-    | ExprVar ((name, value))  ->
+    | ExprVar ((name, _value))  ->
       printf "(lvar `%s)" name
-    | ExprConst ((name, value), base) ->
+    | ExprConst ((name, _value), base) ->
       printf "(const %a `%s)" print_cexpr base name
-    | ExprIVar ((name, value)) ->
+    | ExprIVar ((name, _value)) ->
       printf "(ivar `%s)" name
     | ExprAssign (name, expr) ->
       printf "(lvasgn `%s %a)" name print_cexpr expr
@@ -100,7 +100,7 @@ module AstPrinter = struct
   and print_args outc arr =
     if List.length(arr) > 0 then begin
       Out_channel.output_string outc "(args";
-      List.iteri ~f:(fun i (id, value) ->
+      List.iteri ~f:(fun _i (id, _value) ->
           Out_channel.output_string outc " ";
           printf "(arg `%s)" id) arr;
       Out_channel.output_string outc ")"

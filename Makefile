@@ -1,13 +1,13 @@
-format ?= exe
-file ?= data/test_kitchen_sink.rb
+FORMAT ?= exe
+FILE ?= data/test_kitchen_sink.rb
 
 build:
-	jbuilder build bin/cli.$(format)
+	dune build bin/cli.$(FORMAT)
 
 run:
-	jbuilder exec bin/cli.$(format) $(file)
+	dune exec bin/cli.$(FORMAT) $(FILE)
 
 clean:
-	jbuilder clean
+	dune clean
 
 .PHONY: build clean run

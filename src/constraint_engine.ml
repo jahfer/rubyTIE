@@ -47,7 +47,7 @@ let find_or_insert2 name t tbl =
   then Some(Hashtbl.find tbl name)
   else (Hashtbl.add tbl name t; None)
 
-let rec build_constraints constraint_map (expr, { type_reference; level }) =
+let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
   let build_constraint type_key = function
     | ExprVar(name, _)
     | ExprIVar(name, _)
@@ -61,40 +61,40 @@ let rec build_constraints constraint_map (expr, { type_reference; level }) =
     | ExprValue(v) ->
       constraint_map
       |> append_constraint type_key (Literal (type_reference, typeof_value v))
-    | ExprAssign (name, ((_, metadata) as iexpr))
-    | ExprIVarAssign (name, ((_, metadata) as iexpr))
-    | ExprConstAssign (name, ((_, metadata) as iexpr)) ->
+    | ExprAssign (name, ((_, _metadata) as iexpr))
+    | ExprIVarAssign (name, ((_, _metadata) as iexpr))
+    | ExprConstAssign (name, ((_, _metadata) as iexpr)) ->
       begin match typeof_expr expr with
         | RawType _ -> constraint_map
-        | TypeMetadata (metadata) ->
-          let typ = metadata.type_reference in
+        | TypeMetadata { type_reference = typ; _ } ->
           (* reference_table |> find_or_insert name typ; *)
           let maybe_t = reference_table |> find_or_insert2 name type_reference in
-          let constraint_map = match maybe_t with
-            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
-            | None -> constraint_map
+          let constraint_map = constraint_map |> match maybe_t with
+            | Some(t) ->
+              append_constraint type_key (SubType (t, type_reference))
+            | None ->
+              append_constraint type_key (Binding (name, type_reference))
           in
-          let constraint_map = build_constraints constraint_map iexpr
-                               |> append_constraint type_key (Binding (name, type_reference)) in
-          begin match metadata.type_reference.elem with
+          let constraint_map = build_constraints constraint_map iexpr in
+          begin match typ.elem with
             | TPoly t ->
               append_constraint t (SubType (typ, type_reference)) constraint_map
             | _ -> constraint_map
           end
       end
     | ExprCall (receiver_expression, meth, args) ->
-      let (iexpr, {type_reference = receiver}) = receiver_expression in
+      let (iexpr, {type_reference = receiver; _}) = receiver_expression in
       let () = match iexpr with
         | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
           let ref_name = String.concat "" [name; "#"; meth] in
           reference_table |> find_or_insert ref_name type_reference
         | _ -> () in
-      let arg_types = args |> List.map (fun (_, {type_reference}) -> type_reference) in
+      let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
       let constraint_map = build_constraints constraint_map receiver_expression
                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
       List.fold_left build_constraints constraint_map args
     | ExprLambda (_, expression) ->
-      let (_, {type_reference = return_type_node}) = expression in
+      let (_, {type_reference = return_type_node; _}) = expression in
       let return_t = (TypeTree.find return_type_node).elem in
       let typ = TLambda([TAny], return_t) in
       build_constraints constraint_map expression

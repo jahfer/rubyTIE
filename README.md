@@ -89,7 +89,7 @@ maybe_sum(3, 5, false)
 ```
 
 ```bash
-$ jbuilder exec bin/cli.exe data/test_basic.rb
+$ dune exec bin/cli.exe data/test_basic.rb
 ```
 
 **Output**

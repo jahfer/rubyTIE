@@ -22,7 +22,7 @@ let gen_fresh_t () =
   (* Printf.printf "-- Creating new type var t/1%03i\n" tv; *)
   TPoly(Core.sprintf "T%i" tv)
 
-let rec typeof_value = function
+let typeof_value = function
   | Hash _   -> THash
   | Bool _   -> TBool
   | Float _  -> TFloat
@@ -43,7 +43,7 @@ type metadata = {
 
 type 'a expression_type = RawType of t | TypeMetadata of metadata
 
-let rec typeof_expr = let open Ast in function
+let typeof_expr = let open Ast in function
     | ExprVar ((_, value))
     | ExprIVar ((_, value))
     | ExprConst ((_, value), _)
