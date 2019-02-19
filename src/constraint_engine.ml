@@ -47,6 +47,23 @@ let find_or_insert2 name t tbl =
   then Some(Hashtbl.find tbl name)
   else (Hashtbl.add tbl name t; None)
 
+let simplify constraint_map =
+  let constraint_mapper lst = function
+    | Literal(_ref, _t) ->
+      (*unify_types ref t;*) lst
+    | SubType(_, t2) as st ->
+      let root = TypeTree.find t2 in
+      if root == t2 || root.root
+      then lst (* Drop constraint if no type dependencies *)
+      else st :: lst (* else keep constraint *)
+    | _ -> lst
+  in constraint_map |> ConstraintMap.mapi(
+      fun
+        (_key : string)
+        (constraint_lst : constraint_t list) ->
+        constraint_lst |> List.fold_left constraint_mapper []
+    )
+
 let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
   let build_constraint type_key = function
     | ExprVar(name, _)

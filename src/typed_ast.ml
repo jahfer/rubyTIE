@@ -5,34 +5,6 @@ open Types
 
 module TypeTree = Disjoint_set
 
-(* Annotations *)
-let annotate expression =
-  let annotate_expression expr location_meta =
-    let t = Types.gen_fresh_t () in
-    let t_node = TypeTree.make ~root:false (Some location_meta) t in
-    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
-  in let (expr, location_meta) = expression in
-  replace_metadata annotate_expression expr location_meta
-
-(* let simplify constraint_map =
-   let open Constraint_engine in
-   let constraint_mapper = function
-    | FunctionApplication(_) -> ()
-    | _ -> ()
-   in constraint_map |> ConstraintMap.mapi fun
-       (key : string)
-       (constraint_lst : constraint_t list) ->
-       constraint_lst |> List.iter constraint_mapper *)
-
-(* AST -> TypedAST *)
-let apply_constraints ast _constraint_map =
-  (* let constraint_map = simplify constraint_map in *)
-  let annotate_expression expr ({ type_reference; _ } as meta) =
-    (* TODO: Write actual constraint solver *)
-    (expr, { meta with type_reference = TypeTree.find type_reference })
-  in let (expr, meta) = ast in
-  replace_metadata annotate_expression expr meta
-
 (* Printer Utility *)
 
 module ExpressionPrinter = struct
@@ -105,3 +77,27 @@ module ExpressionPrinter = struct
         vs |> List.iter (fun v -> print_constraint k v)
       )
 end
+
+(* Annotations *)
+
+let annotate expression =
+  let annotate_expression expr location_meta =
+    let t = Types.gen_fresh_t () in
+    let t_node = TypeTree.make ~root:false (Some location_meta) t in
+    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
+  in let (expr, location_meta) = expression in
+  replace_metadata annotate_expression expr location_meta
+
+(* AST -> TypedAST *)
+let apply_constraints ast constraint_map =
+  Printf.printf "------\n";
+  constraint_map
+  |> Constraint_engine.simplify
+  |> ExpressionPrinter.print_constraint_map;
+  Printf.printf "======\n";
+
+  let annotate_expression expr ({ type_reference; _ } as meta) =
+    (* TODO: Write actual constraint solver *)
+    (expr, { meta with type_reference = TypeTree.find type_reference })
+  in let (expr, meta) = ast in
+  replace_metadata annotate_expression expr meta
