@@ -1,4 +1,6 @@
+node_modules
 _build
+_esy
 *.byte
 *.native
 *.merlin

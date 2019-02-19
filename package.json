@@ -1,0 +1,31 @@
+{
+  "name": "ruby_tie",
+  "version": "0.1.0",
+  "description": "Ruby type inference engine",
+  "license": "MIT",
+  "esy": {
+    "build": "refmterr dune build -p #{self.name}",
+    "release": {
+      "bin": [
+        "cli.exe"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "esy dune runtest"
+  },
+  "dependencies": {
+    "@opam/dune": "*",
+    "@reason-native/console": "*",
+    "@reason-native/pastel": "*",
+    "refmterr": "*",
+    "ocaml": "~4.6.0"
+  },
+  "devDependencies": {
+    "@opam/merlin": "*",
+    "ocaml": "~4.6.0",
+    "@opam/odoc": "*",
+    "@opam/ounit": "~2.0.8",
+    "@opam/core": "*"
+  }
+}

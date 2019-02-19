@@ -27,7 +27,7 @@ SubType  T6 < T9
 
 #### Replace Literals in Subtypes
 
-```
+```diff
 SubType  bool < T2
 SubType  T4 < T10
 Binding  x = T2
@@ -44,7 +44,7 @@ SubType  T6 < T9
 
 #### Cosmetics: Insert Bindings in Subtypes
 
-```
+```diff
 SubType  bool < x
 SubType  y < T10
 SubType  int < y
@@ -59,7 +59,7 @@ SubType  a < T9
 
 #### Drop Types With Single Constraints (T9, T10)
 
-```
+```diff
 SubType  bool < x
 SubType  int < y
 SubType  T5 < a
@@ -71,7 +71,7 @@ SubType  a < T8
 
 #### Flatten Relationships
 
-```
+```diff
 SubType  bool < x < T5 < a < T8
 SubType  int < y < T7 < a < T8
 ```
@@ -80,7 +80,7 @@ SubType  int < y < T7 < a < T8
 
 - [ ] Completed
 
-```
+```diff
 SubType (bool < x < a)
 SubType (int < y < a)
 ```

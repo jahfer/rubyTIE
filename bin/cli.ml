@@ -1,4 +1,3 @@
-open Core
 open Cmdliner
 
 let rbt filename =

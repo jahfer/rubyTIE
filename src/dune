@@ -1,0 +1,11 @@
+(library
+  (name ruby_tie)
+  (public_name ruby_tie)
+  (flags :standard -warn-error A)
+  (libraries core))
+
+(menhir
+  (flags --explain)
+  (modules parser))
+
+(ocamllex lexer)

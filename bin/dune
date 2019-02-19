@@ -1,0 +1,3 @@
+(executable
+  (name cli)
+  (libraries cmdliner ruby_tie))
