@@ -44,36 +44,32 @@ SubType  T6 < T9
 
 #### Cosmetics: Insert Bindings in Subtypes
 
-```diff
-SubType  bool < x
-SubType  y < T10
-SubType  int < y
-SubType  T5 < a
-SubType  x < T5
-Binding  a = a
-SubType  T7 < T8
-SubType  y < T7
-SubType  a < T8
-SubType  a < T9
-```
-
-#### Drop Types With Single Constraints (T9, T10)
+- [ ] Completed
 
 ```diff
-SubType  bool < x
-SubType  int < y
-SubType  T5 < a
-SubType  x < T5
+SubType  bool < T2 (x)
+SubType  T4 (y) < T10
+SubType  int < T4 (y)
+SubType  T5 < T6 (a)
+SubType  T2 (x) < T5
 SubType  T7 < T8
-SubType  y < T7
-SubType  a < T8
+SubType  T4 (y) < T7
+SubType  T6 (a) < T8
+SubType  T6 (a) < T9
 ```
 
 #### Flatten Relationships
 
+- [ ] Completed
+
 ```diff
-SubType  bool < x < T5 < a < T8
-SubType  int < y < T7 < a < T8
+                                 T6 (a) < T9
+                                /
+SubType  bool < T2 (x) < T5 < T6 (a) < T8
+                              /
+SubType  int < T4 (y) < T7 < T6 (a)
+                \
+                 T4 (y) < T10
 ```
 
 #### Drop Intermediate Type Variables
