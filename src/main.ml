@@ -44,20 +44,28 @@ let print_type_error a b =
   | None -> ()
 
 let parse_buf_to_ast lexbuf =
+  (* iterate through buffer to cumulatively build untyped AST *)
   let rec build_untyped_ast lexbuf acc =
     match parse_with_error lexbuf with
     | Some (expr) ->
       build_untyped_ast lexbuf ((Typed_ast.annotate expr) :: acc)
     | None -> acc
   in let untyped_ast : 'a Ast.expression list = build_untyped_ast lexbuf [] in
+  (* Find constraints based on interaction within AST *)
   let open Constraint_engine in
-  let constraint_map = ConstraintMap.empty in
-  let constraints = List.fold_right (fun x acc ->
-      try build_constraints acc x with
-      | Constraint_engine.TypeError (a, b) -> print_type_error a b; exit (-1)
-    ) untyped_ast constraint_map in
+  let constraints = ConstraintMap.empty
+    |> List.fold_right (fun x acc ->
+        try build_constraints acc x with
+        | Constraint_engine.TypeError (a, b) -> print_type_error a b; exit (-1)
+      ) untyped_ast in
   Typed_ast.ExpressionPrinter.print_constraint_map constraints;
-  (* Missing constraint simplification step *)
+
+  let constraints = constraints
+    |> Constraint_engine.simplify in
+  constraints
+    |> Typed_ast.ExpressionPrinter.print_constraint_map;
+
+  (* Simplify and solve constraints *)
   let typed_ast = List.map (fun ast -> Typed_ast.apply_constraints ast constraints) untyped_ast in
   List.iter (fun ast ->
       Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)

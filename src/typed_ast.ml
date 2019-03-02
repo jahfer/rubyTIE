@@ -74,7 +74,10 @@ module ExpressionPrinter = struct
 
   let print_constraint_map constraint_map =
     constraint_map |> Constraint_engine.ConstraintMap.iter (fun k vs ->
-        vs |> List.iter (fun v -> print_constraint k v)
+        printf "Type variable %s\n" k;
+        printf "-----------------\n";
+        vs |> List.iter (fun v -> print_constraint k v);
+        printf "\n"
       )
 end
 
@@ -89,15 +92,9 @@ let annotate expression =
   replace_metadata annotate_expression expr location_meta
 
 (* AST -> TypedAST *)
-let apply_constraints ast constraint_map =
-  Printf.printf "------\n";
-  constraint_map
-  |> Constraint_engine.simplify
-  |> ExpressionPrinter.print_constraint_map;
-  Printf.printf "======\n";
-
+let apply_constraints ast _constraint_map =
+  (* TODO: Write actual constraint solver *)
   let annotate_expression expr ({ type_reference; _ } as meta) =
-    (* TODO: Write actual constraint solver *)
     (expr, { meta with type_reference = TypeTree.find type_reference })
   in let (expr, meta) = ast in
   replace_metadata annotate_expression expr meta

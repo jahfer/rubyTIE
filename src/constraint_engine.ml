@@ -36,48 +36,52 @@ let append_constraint k c map =
 
 let find_or_insert name t tbl =
   if Hashtbl.mem tbl name
-  then begin
-    Printf.printf "Found existing type for %s\n" name;
-    unify_types t (Hashtbl.find tbl name) (* TODO this should not unify, it should create subtype *)
-  end
-  else Hashtbl.add tbl name t
-
-let find_or_insert2 name t tbl =
-  if Hashtbl.mem tbl name
   then Some(Hashtbl.find tbl name)
   else (Hashtbl.add tbl name t; None)
 
+(*
+  After constraints have been found, iterate over constraints
+  until definition for all types can be found.
+*)
 let simplify constraint_map =
   let constraint_mapper lst = function
-    | Literal(_ref, _t) ->
-      (*unify_types ref t;*) lst
+    | Literal(ref, t) as cst ->
+      let base_reference = base_type_reference t in
+      unify_types ref base_reference;
+      cst :: lst
     | SubType(_, t2) as st ->
-      let root = TypeTree.find t2 in
-      if root == t2 || root.root
+      let top = TypeTree.find t2 in
+      if top == t2 || top.root
       then lst (* Drop constraint if no type dependencies *)
       else st :: lst (* else keep constraint *)
     | _ -> lst
-  in constraint_map |> ConstraintMap.mapi(
+  in let (_eliminated_types, constrained_types) = constraint_map
+    |> ConstraintMap.mapi(
       fun
         (_key : string)
         (constraint_lst : constraint_t list) ->
         constraint_lst |> List.fold_left constraint_mapper []
     )
+    |> ConstraintMap.partition (fun _k v -> (List.compare_length_with v 0) = 0)
+  in constrained_types
 
 let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
   let build_constraint type_key = function
+    (* Variable access *)
     | ExprVar(name, _)
     | ExprIVar(name, _)
     | ExprConst((name, _), _) ->
       (* reference_table |> find_or_insert name type_reference; *)
-      let maybe_t = reference_table |> find_or_insert2 name type_reference in
+      let maybe_t = reference_table |> find_or_insert name type_reference in
       begin match maybe_t with
         | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
         | None -> constraint_map
       end
+    (* Direct Ruby literal reference *)
     | ExprValue(v) ->
       constraint_map
       |> append_constraint type_key (Literal (type_reference, typeof_value v))
+    (* Variable assignment *)
     | ExprAssign (name, ((_, _metadata) as iexpr))
     | ExprIVarAssign (name, ((_, _metadata) as iexpr))
     | ExprConstAssign (name, ((_, _metadata) as iexpr)) ->
@@ -85,7 +89,7 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
         | RawType _ -> constraint_map
         | TypeMetadata { type_reference = typ; _ } ->
           (* reference_table |> find_or_insert name typ; *)
-          let maybe_t = reference_table |> find_or_insert2 name type_reference in
+          let maybe_t = reference_table |> find_or_insert name type_reference in
           let constraint_map = constraint_map |> match maybe_t with
             | Some(t) ->
               append_constraint type_key (SubType (t, type_reference))
@@ -99,17 +103,23 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
             | _ -> constraint_map
           end
       end
+    (* Method invocation *)
     | ExprCall (receiver_expression, meth, args) ->
       let (iexpr, {type_reference = receiver; _}) = receiver_expression in
-      let () = match iexpr with
+      let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
+      let constraint_map = match iexpr with
         | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
           let ref_name = String.concat "" [name; "#"; meth] in
-          reference_table |> find_or_insert ref_name type_reference
-        | _ -> () in
-      let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
+          let maybe_t = reference_table |> find_or_insert ref_name type_reference in
+          begin match maybe_t with
+            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
+            | None -> constraint_map
+          end
+        | _ -> constraint_map in
       let constraint_map = build_constraints constraint_map receiver_expression
                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
       List.fold_left build_constraints constraint_map args
+    (* Lambda definition *)
     | ExprLambda (_, expression) ->
       let (_, {type_reference = return_type_node; _}) = expression in
       let return_t = (TypeTree.find return_type_node).elem in
@@ -117,6 +127,7 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
       build_constraints constraint_map expression
       |> append_constraint type_key (Literal(type_reference, typ))
     | _ -> constraint_map
+
   in match (level, type_reference.elem) with
   | 0, TPoly (type_key) -> build_constraint type_key expr
   | _ -> constraint_map

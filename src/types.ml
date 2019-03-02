@@ -1,20 +1,26 @@
 open Ast
 module TypeTree = Disjoint_set
 
-type t =
-  | THash
-  | TBool
-  | TFloat
-  | TInt
-  | TArray of t
-  | TNil
-  | TString
-  | TSymbol
-  | TConst of t
-  | TAny
-  | TPoly of string
-  | TLambda of t list * t
-  | TUnion of t * t
+module BaseType = struct
+  type t =
+    | THash
+    | TBool
+    | TFloat
+    | TInt
+    | TArray of t
+    | TNil
+    | TString
+    | TSymbol
+    | TConst of t
+    | TAny
+    | TPoly of string
+    | TLambda of t list * t
+    | TUnion of t * t
+
+  let compare = compare
+end
+
+include BaseType
 
 let current_var = ref 1
 let gen_fresh_t () =
@@ -34,6 +40,16 @@ let typeof_value = function
   | Any      -> gen_fresh_t ()
 
 type type_reference = (t, Location.t) TypeTree.t
+
+
+module BaseTypeMap = Map.Make (BaseType)
+
+let base_type_reference =
+  let type_map = BaseTypeMap.empty in
+  fun (base_type : BaseType.t) : type_reference ->
+    match type_map |> BaseTypeMap.find_opt base_type with
+    | Some (type_ref) -> type_ref
+    | None -> TypeTree.make ~root:true None base_type
 
 type metadata = {
   expr_loc : Location.t;
