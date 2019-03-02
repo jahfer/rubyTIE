@@ -1,18 +1,18 @@
 (*
  * The upper boundary of a variable describes what can be passed in
- * as a value, whereas the lower boundary tells what does the value
- * satisfy if it is retrieved.
+ * as a value, whereas the lower boundary tells what the value
+ * satisfies if it is retrieved.
  *)
 
 module Base = struct
-  type 'a upper_boundary = Top | Constrained of 'a
-  type 'a lower_boundary = Bottom | Constrained of 'a
+  type 'a upper_bound = Top | Constrained of 'a
+  type 'a lower_bound = Bottom | Constrained of 'a
 
   type 'a t = {
     (* What can be passed in as a value (+) *)
-    as_input: 'a upper_boundary;
+    input_constraints: 'a upper_bound;
     (* What is satisfied if retrieved (-) *)
-    as_output: 'a lower_boundary;
+    output_constraints: 'a lower_bound;
   }
 end
 
@@ -20,45 +20,52 @@ end
 (* |n| Requires that t implements only c (intersection) *)
 
 module Ruby = struct
-  type typ =
+  type literal =
     | THash
     | TBool
     | TFloat
     | TInt
-    | TArray of typ
+    | TArray of literal
     | TNil
     | TString
     | TSymbol
 
+  (* single constraint found by type system *)
   type constraint_t =
-    | Binding
-    | Literal of typ
-    | FunctionApplication
-    | Equality
-    | Disjuction
-    | Overload
-    | Class
-    | SubType
+    | Literal of literal
+    | Disjuction of t list
+    | SubType of t
+    | Member of string * t
+    | Method of string * upper_bound list * lower_bound
 
-  type t = (constraint_t list) Base.t
+  (* type constraint structure *)
+  and c = constraint_t list
+
+  (* partial type definition *)
+  and upper_bound = c Base.upper_bound
+  and lower_bound = c Base.lower_bound
+
+  (* full type definition *)
+  and t = c Base.t
 end
 
 include Base
 
-let free_type = { as_input = Top; as_output = Bottom }
+let free_type = { input_constraints = Top; output_constraints = Bottom }
 
 (* Appends a constraint to a specific polarity of the provided type *)
 (* (+x, -x) -> c -> t where -x <= s *)
 let input_constraint
-  (x : Ruby.t)
-  (c : Ruby.constraint_t) =
-  match x.as_input with
-  | Top -> { x with as_input = Constrained([c]) }
-  | Constrained (s) -> { x with as_input = Constrained(c :: s) }
+  (c : 'a)
+  (x : 'a list t) =
+  match x.input_constraints with
+  | Top -> { x with input_constraints = Constrained([c]) }
+  | Constrained (s) -> { x with input_constraints = Constrained(c :: s) }
 
 let output_constraint
-  (x : Ruby.t)
-  (c : Ruby.constraint_t) =
-  match x.as_output with
-  | Bottom -> { x with as_output = Constrained([c]) }
-  | Constrained (s) -> { x with as_output = Constrained(c :: s) }
+  (c : 'a)
+  (x : 'a list t) =
+  match x.output_constraints with
+  | Bottom -> { x with output_constraints = Constrained([c]) }
+  | Constrained (s) -> { x with output_constraints = Constrained(c :: s) }
+
