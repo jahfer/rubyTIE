@@ -74,10 +74,7 @@ module ExpressionPrinter = struct
 
   let print_constraint_map constraint_map =
     constraint_map |> Constraint_engine.ConstraintMap.iter (fun k vs ->
-        printf "Type variable %s\n" k;
-        printf "-----------------\n";
         vs |> List.iter (fun v -> print_constraint k v);
-        printf "\n"
       )
 end
 

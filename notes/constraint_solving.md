@@ -23,9 +23,9 @@ SubType  T6 < T9
 
 ### Simplification
 
-- [ ] Completed
-
 #### Replace Literals in Subtypes
+
+- [x] Completed
 
 ```diff
 SubType  bool < T2

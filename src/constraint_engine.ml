@@ -45,16 +45,20 @@ let find_or_insert name t tbl =
 *)
 let simplify constraint_map =
   let constraint_mapper lst = function
-    | Literal(ref, t) as cst ->
+    (* type variable is bound to a literal so it must be that literal *)
+    | Literal(ref, t) ->
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
-      cst :: lst
+      lst
+    (* type variable is a subtype of another *)
+    (*
     | SubType(_, t2) as st ->
       let top = TypeTree.find t2 in
       if top == t2 || top.root
       then lst (* Drop constraint if no type dependencies *)
       else st :: lst (* else keep constraint *)
-    | _ -> lst
+      *)
+    | _ as cst -> cst :: lst
   in let (_eliminated_types, constrained_types) = constraint_map
     |> ConstraintMap.mapi(
       fun
