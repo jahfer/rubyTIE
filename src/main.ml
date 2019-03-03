@@ -26,18 +26,18 @@ let parse_with_error lexbuf =
     Format.fprintf Format.std_formatter "%a: syntax error ('%s')\n" print_position lexbuf tok;
     exit (-1)
 
-let print_type_error a b =
+let print_type_error (a : Types.type_reference) (b : Types.type_reference) =
   Printf.printf "-- TYPE ERROR %s\n\n" (String.make 40 '-');
   Printf.printf "Type `%s` is not compatible with type `%s`\n"
     (Printer.type_to_str (Disjoint_set.find a).elem)
     (Printer.type_to_str (Disjoint_set.find b).elem);
-  let () = match b.metadata with
+  let () = match b.metadata.location with
     | Some (loc) ->
       Location.print_loc loc;
       Printf.printf " type is initialized as `%s` here\n" (Printer.type_to_str (Disjoint_set.find b).elem);
     | None -> ()
   in
-  match a.metadata with
+  match a.metadata.location with
   | Some (loc) ->
     Location.print_loc loc;
     Printf.printf " but used as `%s` here\n" (Printer.type_to_str (Disjoint_set.find a).elem)

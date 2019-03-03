@@ -44,7 +44,7 @@ SubType  T6 < T9
 
 #### Cosmetics: Insert Bindings in Subtypes
 
-- [ ] Completed
+- [x] Completed
 
 ```diff
 SubType  bool < T2 (x)
@@ -52,9 +52,9 @@ SubType  T4 (y) < T10
 SubType  int < T4 (y)
 SubType  T5 < T6 (a)
 SubType  T2 (x) < T5
-SubType  T7 < T8
+SubType  T7 < T8 (a)
 SubType  T4 (y) < T7
-SubType  T6 (a) < T8
+SubType  T6 (a) < T8 (a)
 SubType  T6 (a) < T9
 ```
 
@@ -65,7 +65,7 @@ SubType  T6 (a) < T9
 ```diff
                                  T6 (a) < T9
                                 /
-SubType  bool < T2 (x) < T5 < T6 (a) < T8
+SubType  bool < T2 (x) < T5 < T6 (a) < T8 (a)
                               /
 SubType  int < T4 (y) < T7 < T6 (a)
                 \

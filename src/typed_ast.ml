@@ -12,7 +12,7 @@ module ExpressionPrinter = struct
   open Ruby_tie__Printer
   open Printf
 
-  let rec print_typed_expr ~indent outc = function
+  let rec print_type_referenced_expr ~indent outc = function
     | ExprCall (receiver, meth, args) ->
       printf "send %a `%s" (print_expression ~indent:(indent+1)) receiver meth;
       (args |> List.iteri (fun _i expr -> print_expression ~indent:(indent+2) outc expr))
@@ -42,8 +42,8 @@ module ExpressionPrinter = struct
     let { type_reference; _ } = metadata in
     (* printf "# %a\n" Location.print_loc expr_loc; *)
     printf "%*s(%s : %a)" indent " "
-      (type_to_str type_reference.elem)
-      (print_typed_expr ~indent:indent)
+      (print_type_reference type_reference)
+      (print_type_referenced_expr ~indent:indent)
       expr;
     if (indent = 1) then printf "\n"
 
@@ -58,17 +58,17 @@ module ExpressionPrinter = struct
         "FunctionApplication"
         (if List.length args > 0 then
            (String.concat ", " (List.map (fun arg ->
-                type_to_str (TypeTree.find arg).elem) args))
+                print_type_reference arg) args))
          else "")
-        k (type_to_str (TypeTree.find receiver_t).elem) member
+        k (print_type_reference receiver_t) member
     | Binding (name, t) ->
-      printf "%s %-20s %s = %s\n" prefix "Binding" name (type_to_str (TypeTree.find t).elem)
+      printf "%s %-20s %s = %s\n" prefix "Binding" name (print_type_reference t)
     | Literal (a, t) ->
-      printf "%s %-20s %s = %s\n" prefix "Literal" (type_to_str (TypeTree.find a).elem) (type_to_str t)
+      printf "%s %-20s %s = %s\n" prefix "Literal" (print_type_reference a) (type_to_str t)
     | Equality (a, b) ->
-      printf "%s %-20s %s = %s\n" prefix "Equality" (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
+      printf "%s %-20s %s = %s\n" prefix "Equality" (print_type_reference a) (print_type_reference b)
     | SubType (a, b) ->
-      printf "%s %-20s %s < %s\n" prefix "SubType" (type_to_str (TypeTree.find a).elem) (type_to_str (TypeTree.find b).elem)
+      printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference a) (print_type_reference b)
     | _ ->
       printf "%s %s => Unknown\n" prefix k
 
@@ -80,11 +80,27 @@ end
 
 (* Annotations *)
 
+let binding_for_expr = function
+  | ExprAssign (name, _)
+  | ExprIVarAssign (name, _)
+  | ExprConstAssign (name, _)
+  | ExprFunc (name, _, _) -> Some(name)
+  | _ -> None
+
 let annotate expression =
   let annotate_expression expr location_meta =
     let t = Types.gen_fresh_t () in
-    let t_node = TypeTree.make ~root:false (Some location_meta) t in
-    (expr, { expr_loc = location_meta; type_reference = t_node; level = 0 })
+    let t_node = t |> TypeTree.make
+      ~root:false
+      ~metadata:{
+        location = (Some location_meta);
+        binding = binding_for_expr expr;
+      } in
+    (expr, {
+      expr_loc = location_meta;
+      type_reference = t_node;
+      level = 0;
+    })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
 

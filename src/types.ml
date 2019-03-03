@@ -39,8 +39,12 @@ let typeof_value = function
   | Nil      -> TNil
   | Any      -> gen_fresh_t ()
 
-type type_reference = (t, Location.t) TypeTree.t
+type type_metadata = {
+  location : Location.t option;
+  binding : string option;
+}
 
+type type_reference = (t, type_metadata) TypeTree.t
 
 module BaseTypeMap = Map.Make (BaseType)
 
@@ -49,7 +53,9 @@ let base_type_reference =
   fun (base_type : BaseType.t) : type_reference ->
     match type_map |> BaseTypeMap.find_opt base_type with
     | Some (type_ref) -> type_ref
-    | None -> TypeTree.make ~root:true None base_type
+    | None -> base_type |> TypeTree.make
+      ~root:true
+      ~metadata:{ location = None; binding = None }
 
 type metadata = {
   expr_loc : Location.t;

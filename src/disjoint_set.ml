@@ -4,12 +4,12 @@ type ('a, 'b) t = {
   size : int ref;
   elem : 'a;
   root : bool;
-  metadata : 'b option;
+  metadata : 'b;
 }
 
 exception Incompatible_nodes
 
-let make ~root metadata elem =
+let make ~root ~metadata elem =
   let rec x = {
     parent = ref x;
     rank = ref 0;

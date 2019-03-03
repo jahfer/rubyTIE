@@ -23,7 +23,7 @@ let unify_types a b =
   Printf.printf "-- %s &\n-- %s\n\n" (Printer.print_inheritance a) (Printer.print_inheritance b);
   try union a b with Incompatible_nodes ->
     let union_t = TUnion((find a).elem, (find b).elem) in
-    let union_t_node = TypeTree.make ~root:true a.metadata union_t in
+    let union_t_node = TypeTree.make ~root:true ~metadata:a.metadata union_t in
     replace_root a union_t_node
 
 let unify_types_exn a b = TypeTree.union a b
@@ -50,13 +50,16 @@ let simplify constraint_map =
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
       lst
+    (* Arguably not even a constraint, just metadata... *)
+    | Binding(_name, _type_reference) ->
+      (* Printf.printf "%s = %s\n" name @@ Printer.type_to_str type_reference.elem; *)
+      lst
     (* type variable is a subtype of another *)
-    (*
-    | SubType(_, t2) as st ->
+    (*| SubType(_, t2) as st ->
       let top = TypeTree.find t2 in
-      if top == t2 || top.root
-      then lst (* Drop constraint if no type dependencies *)
-      else st :: lst (* else keep constraint *)
+      if top != t2
+      then st :: lst (* Keep constraint *)
+      else lst (* else drop constraint if no type dependencies *)
       *)
     | _ as cst -> cst :: lst
   in let (_eliminated_types, constrained_types) = constraint_map
@@ -94,11 +97,9 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
         | TypeMetadata { type_reference = typ; _ } ->
           (* reference_table |> find_or_insert name typ; *)
           let maybe_t = reference_table |> find_or_insert name type_reference in
-          let constraint_map = constraint_map |> match maybe_t with
-            | Some(t) ->
-              append_constraint type_key (SubType (t, type_reference))
-            | None ->
-              append_constraint type_key (Binding (name, type_reference))
+          let constraint_map = match maybe_t with
+            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
+            | None -> constraint_map
           in
           let constraint_map = build_constraints constraint_map iexpr in
           begin match typ.elem with
