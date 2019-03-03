@@ -5,7 +5,6 @@ exception TypeError of type_reference * type_reference
 (* exception AssignmentError of expression * expression *)
 
 type constraint_t =
-  | Binding of string * type_reference
   | Literal of type_reference * Types.t
   | FunctionApplication of string * type_reference list * type_reference (* member name, args, return value *)
   | Equality of type_reference * type_reference
@@ -45,14 +44,10 @@ let find_or_insert name t tbl =
 *)
 let simplify constraint_map =
   let constraint_mapper lst = function
-    (* type variable is bound to a literal so it must be that literal *)
+    (* type variable is bound to a literal *)
     | Literal(ref, t) ->
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
-      lst
-    (* Arguably not even a constraint, just metadata... *)
-    | Binding(_name, _type_reference) ->
-      (* Printf.printf "%s = %s\n" name @@ Printer.type_to_str type_reference.elem; *)
       lst
     (* type variable is a subtype of another *)
     (*| SubType(_, t2) as st ->
@@ -78,7 +73,6 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
     | ExprVar(name, _)
     | ExprIVar(name, _)
     | ExprConst((name, _), _) ->
-      (* reference_table |> find_or_insert name type_reference; *)
       let maybe_t = reference_table |> find_or_insert name type_reference in
       begin match maybe_t with
         | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
@@ -95,7 +89,6 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
       begin match typeof_expr expr with
         | RawType _ -> constraint_map
         | TypeMetadata { type_reference = typ; _ } ->
-          (* reference_table |> find_or_insert name typ; *)
           let maybe_t = reference_table |> find_or_insert name type_reference in
           let constraint_map = match maybe_t with
             | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))

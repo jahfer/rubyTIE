@@ -61,8 +61,6 @@ module ExpressionPrinter = struct
                 print_type_reference arg) args))
          else "")
         k (print_type_reference receiver_t) member
-    | Binding (name, t) ->
-      printf "%s %-20s %s = %s\n" prefix "Binding" name (print_type_reference t)
     | Literal (a, t) ->
       printf "%s %-20s %s = %s\n" prefix "Literal" (print_type_reference a) (type_to_str t)
     | Equality (a, b) ->
