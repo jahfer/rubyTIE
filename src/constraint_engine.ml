@@ -87,8 +87,8 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
     | ExprIVarAssign (name, ((_, _metadata) as iexpr))
     | ExprConstAssign (name, ((_, _metadata) as iexpr)) ->
       begin match typeof_expr expr with
-        | RawType _ -> constraint_map
-        | TypeMetadata { type_reference = typ; _ } ->
+        | GeneralizedType _ -> constraint_map
+        | SpecializedType (typ) ->
           let maybe_t = reference_table |> find_or_insert name type_reference in
           let constraint_map = match maybe_t with
             | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
