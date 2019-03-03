@@ -67,33 +67,39 @@ let simplify constraint_map =
     |> ConstraintMap.partition (fun _k v -> (List.compare_length_with v 0) = 0)
   in constrained_types
 
+type constraint_category =
+  | ReferenceConstraint of string
+  | AssignmentConstraint of string * expr_metadata expression
+  | OtherConstraint of expr_metadata expr
+
+let map_to_constraint_category e = match e with
+  | ExprVar(name, _)
+  | ExprIVar(name, _)
+  | ExprConst((name, _), _) -> ReferenceConstraint name
+  | ExprAssign (name, expr)
+  | ExprIVarAssign (name, expr)
+  | ExprConstAssign (name, expr) -> AssignmentConstraint (name, expr)
+  | ExprCall _
+  | ExprLambda _
+  | ExprValue _
+  | ExprFunc _
+  | ExprBlock _ -> OtherConstraint e
+
 let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
-  let build_constraint type_key = function
-    (* Variable access *)
-    | ExprVar(name, _)
-    | ExprIVar(name, _)
-    | ExprConst((name, _), _) ->
+  let rec build_constraint type_key = function
+
+    | ReferenceConstraint (name) ->
       let maybe_t = reference_table |> find_or_insert name type_reference in
       begin match maybe_t with
         | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
         | None -> constraint_map
       end
-    (* Direct Ruby literal reference *)
-    | ExprValue(v) ->
-      constraint_map
-      |> append_constraint type_key (Literal (type_reference, typeof_value v))
-    (* Variable assignment *)
-    | ExprAssign (name, ((_, _metadata) as iexpr))
-    | ExprIVarAssign (name, ((_, _metadata) as iexpr))
-    | ExprConstAssign (name, ((_, _metadata) as iexpr)) ->
+
+    | AssignmentConstraint (name, iexpr) ->
       begin match typeof_expr expr with
         | GeneralizedType _ -> constraint_map
         | SpecializedType (typ) ->
-          let maybe_t = reference_table |> find_or_insert name type_reference in
-          let constraint_map = match maybe_t with
-            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
-            | None -> constraint_map
-          in
+          let constraint_map = build_constraint type_key (ReferenceConstraint name) in
           let constraint_map = build_constraints constraint_map iexpr in
           begin match typ.elem with
             | TPoly t ->
@@ -101,31 +107,32 @@ let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
             | _ -> constraint_map
           end
       end
-    (* Method invocation *)
-    | ExprCall (receiver_expression, meth, args) ->
-      let (iexpr, {type_reference = receiver; _}) = receiver_expression in
-      let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
-      let constraint_map = match iexpr with
-        | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
-          let ref_name = String.concat "" [name; "#"; meth] in
-          let maybe_t = reference_table |> find_or_insert ref_name type_reference in
-          begin match maybe_t with
-            | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
-            | None -> constraint_map
-          end
-        | _ -> constraint_map in
-      let constraint_map = build_constraints constraint_map receiver_expression
-                           |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
-      List.fold_left build_constraints constraint_map args
-    (* Lambda definition *)
-    | ExprLambda (_, expression) ->
-      let (_, {type_reference = return_type_node; _}) = expression in
-      let return_t = (TypeTree.find return_type_node).elem in
-      let typ = TLambda([TAny], return_t) in
-      build_constraints constraint_map expression
-      |> append_constraint type_key (Literal(type_reference, typ))
-    | _ -> constraint_map
 
+    | OtherConstraint (e) -> begin match e with
+      (* Direct Ruby literal reference *)
+      | ExprValue(v) ->
+        constraint_map |> append_constraint type_key (Literal (type_reference, typeof_value v))
+      (* Method invocation *)
+      | ExprCall (receiver_expression, meth, args) ->
+        let (iexpr, {type_reference = receiver; _}) = receiver_expression in
+        let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
+        let constraint_map = match iexpr with
+          | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
+            let ref_name = String.concat "" [name; "#"; meth] in
+            build_constraint type_key (ReferenceConstraint ref_name)
+          | _ -> constraint_map in
+        let constraint_map = build_constraints constraint_map receiver_expression
+                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
+        List.fold_left build_constraints constraint_map args
+      (* Lambda definition *)
+      | ExprLambda (_, expression) ->
+        let (_, {type_reference = return_type_node; _}) = expression in
+        let return_t = (TypeTree.find return_type_node).elem in
+        let typ = TLambda([TAny], return_t) in
+        build_constraints constraint_map expression
+        |> append_constraint type_key (Literal(type_reference, typ))
+      | _ -> constraint_map
+    end
   in match (level, type_reference.elem) with
-  | 0, TPoly (type_key) -> build_constraint type_key expr
+  | 0, TPoly (type_key) -> build_constraint type_key (map_to_constraint_category expr)
   | _ -> constraint_map
