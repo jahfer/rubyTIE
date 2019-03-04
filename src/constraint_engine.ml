@@ -72,7 +72,7 @@ type constraint_category =
   | AssignmentConstraint of string * expr_metadata expression
   | OtherConstraint of expr_metadata expr
 
-let map_to_constraint_category e = match e with
+let expr_to_constraint_category e = match e with
   | ExprVar(name, _)
   | ExprIVar(name, _)
   | ExprConst((name, _), _) -> ReferenceConstraint name
@@ -85,54 +85,71 @@ let map_to_constraint_category e = match e with
   | ExprFunc _
   | ExprBlock _ -> OtherConstraint e
 
-let rec build_constraints constraint_map (expr, { type_reference; level; _ }) =
-  let rec build_constraint type_key = function
+let rec build_constraints constraint_map (expr, { type_reference; _ }) =
+
+  let rec build_constraint type_var_name = function
 
     | ReferenceConstraint (name) ->
-      let maybe_t = reference_table |> find_or_insert name type_reference in
-      begin match maybe_t with
-        | Some(t) -> constraint_map |> append_constraint type_key (SubType (t, type_reference))
+      let opt_existing_type = reference_table
+      |> find_or_insert name type_reference in
+
+      begin match opt_existing_type with
+        | Some (existing_type) ->
+          constraint_map
+          |> append_constraint type_var_name @@ SubType (existing_type, type_reference)
         | None -> constraint_map
       end
 
     | AssignmentConstraint (name, iexpr) ->
       begin match typeof_expr expr with
         | GeneralizedType _ -> constraint_map
-        | SpecializedType (typ) ->
-          let constraint_map = build_constraint type_key (ReferenceConstraint name) in
-          let constraint_map = build_constraints constraint_map iexpr in
-          begin match typ.elem with
-            | TPoly t ->
-              append_constraint t (SubType (typ, type_reference)) constraint_map
-            | _ -> constraint_map
-          end
+        | SpecializedType (expr_type) ->
+          let constraint_map =
+            ReferenceConstraint name
+            |> build_constraint type_var_name
+            |> Util.flip build_constraints iexpr in
+          match expr_type.elem with
+          | TPoly t ->
+            constraint_map
+            |> append_constraint t @@ SubType (expr_type, type_reference)
+          | _ -> constraint_map
       end
 
-    | OtherConstraint (e) -> begin match e with
+    | OtherConstraint (e) -> match e with
+
       (* Direct Ruby literal reference *)
-      | ExprValue(v) ->
-        constraint_map |> append_constraint type_key (Literal (type_reference, typeof_value v))
+      | ExprValue (value) ->
+        constraint_map
+        |> append_constraint type_var_name @@ Literal (type_reference, typeof_value value)
+
       (* Method invocation *)
       | ExprCall (receiver_expression, meth, args) ->
-        let (iexpr, {type_reference = receiver; _}) = receiver_expression in
-        let arg_types = args |> List.map (fun (_, {type_reference; _}) -> type_reference) in
-        let constraint_map = match iexpr with
-          | ExprVar (name, _) | ExprIVar (name, _) | ExprConst ((name, _), _) ->
-            let ref_name = String.concat "" [name; "#"; meth] in
-            build_constraint type_key (ReferenceConstraint ref_name)
-          | _ -> constraint_map in
-        let constraint_map = build_constraints constraint_map receiver_expression
-                            |> append_constraint type_key (FunctionApplication(meth, arg_types, receiver)) in
-        List.fold_left build_constraints constraint_map args
+        let (receiver_expr, {type_reference = receiver_type; _}) = receiver_expression
+        and arg_types = args
+          |> List.map (fun (_, {type_reference; _}) -> type_reference)
+        in begin
+          match (expr_to_constraint_category receiver_expr) with
+          | ReferenceConstraint (receiver_name) ->
+            let method_name = String.concat "" [ receiver_name; "#"; meth ] in
+            build_constraint type_var_name @@ ReferenceConstraint method_name
+          | _ -> constraint_map
+        end
+        |> Util.flip build_constraints receiver_expression
+        |> append_constraint type_var_name @@ FunctionApplication (meth, arg_types, receiver_type)
+        |> Util.flip (List.fold_left build_constraints) args
+
       (* Lambda definition *)
       | ExprLambda (_, expression) ->
         let (_, {type_reference = return_type_node; _}) = expression in
-        let return_t = (TypeTree.find return_type_node).elem in
-        let typ = TLambda([TAny], return_t) in
+        let return_type = (TypeTree.find return_type_node).elem in
+        let lambda_type = TLambda([TAny], return_type) in
         build_constraints constraint_map expression
-        |> append_constraint type_key (Literal(type_reference, typ))
+        |> append_constraint type_var_name @@ Literal (type_reference, lambda_type)
+
       | _ -> constraint_map
-    end
-  in match (level, type_reference.elem) with
-  | 0, TPoly (type_key) -> build_constraint type_key (map_to_constraint_category expr)
+  in
+  match type_reference.elem with
+  | TPoly (type_var_name) ->
+    expr_to_constraint_category expr
+    |> build_constraint type_var_name
   | _ -> constraint_map
