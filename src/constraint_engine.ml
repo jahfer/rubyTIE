@@ -43,28 +43,34 @@ let find_or_insert name t tbl =
   until definition for all types can be found.
 *)
 let simplify constraint_map =
-  let constraint_mapper lst = function
+  let step_1 lst = function
     (* type variable is bound to a literal *)
     | Literal(ref, t) ->
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
       lst
-    (* type variable is a subtype of another *)
-    (*| SubType(_, t2) as st ->
-      let top = TypeTree.find t2 in
-      if top != t2
-      then st :: lst (* Keep constraint *)
-      else lst (* else drop constraint if no type dependencies *)
-      *)
     | _ as cst -> cst :: lst
-  in let (_eliminated_types, constrained_types) = constraint_map
+  in
+  let step_2 lst = function
+    | SubType(subtype, supertype) as st ->
+      if (TypeTree.find subtype).metadata.level = Resolved ||
+        Util.is_some subtype.metadata.binding
+      then st :: lst
+      else (subtype.parent := supertype; lst)
+    | _ as cst -> cst :: lst
+  in
+  let (_eliminated_types, constrained_types) = constraint_map
     |> ConstraintMap.mapi(
       fun
         (_key : string)
         (constraint_lst : constraint_t list) ->
-        constraint_lst |> List.fold_left constraint_mapper []
+          constraint_lst
+          |> List.fold_left step_1 []
+          |> List.fold_left step_2 []
     )
-    |> ConstraintMap.partition (fun _k v -> (List.compare_length_with v 0) = 0)
+    |> ConstraintMap.partition (
+      fun _k v -> (List.compare_length_with v 0) = 0
+    )
   in constrained_types
 
 type constraint_category =

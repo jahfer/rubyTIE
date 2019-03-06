@@ -42,9 +42,11 @@ let typeof_value = function
   | Any      -> gen_fresh_t ()
 
 (* Information stored alongside each type variable *)
+type type_resolution = Unresolved | Resolved
 type type_metadata = {
   location : Location.t option;
   binding : string option;
+  level : type_resolution;
 }
 
 (* Structure of type variable *)
@@ -81,4 +83,4 @@ let base_type_reference =
     | Some (type_ref) -> type_ref
     | None -> base_type |> TypeTree.make
       ~root:true
-      ~metadata:{ location = None; binding = None }
+      ~metadata:{ location = None; binding = None; level = Resolved }

@@ -90,7 +90,11 @@ let annotate expression =
     let t = Types.gen_fresh_t () in
     let t_node = t |> TypeTree.make
       ~root:false
-      ~metadata:{ location = (Some location_meta); binding = binding_for_expr expr } in
+      ~metadata:{
+        location = (Some location_meta);
+        binding = binding_for_expr expr;
+        level = Unresolved
+      } in
     (expr, { expr_loc = location_meta; type_reference = t_node; level = 0; })
   in let (expr, location_meta) = expression in
   replace_metadata annotate_expression expr location_meta
