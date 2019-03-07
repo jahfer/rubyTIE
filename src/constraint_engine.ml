@@ -53,8 +53,9 @@ let simplify constraint_map =
   in
   let step_2 lst = function
     | SubType(subtype, supertype) as st ->
-      if (TypeTree.find subtype).metadata.level = Resolved ||
-        Util.is_some subtype.metadata.binding
+      if subtype.metadata.binding = supertype.metadata.binding
+      then (unify_types subtype supertype; lst)
+      else if (TypeTree.find subtype).metadata.level = Resolved || Util.is_some subtype.metadata.binding
       then st :: lst
       else (subtype.parent := supertype; lst)
     | _ as cst -> cst :: lst
