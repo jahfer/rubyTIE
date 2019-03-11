@@ -60,7 +60,7 @@ SubType  T6 (a) < T9
 
 #### Flatten Relationships
 
-- [ ] Completed
+- [x] Completed
 
 ```diff
                                  T6 (a) < T9
@@ -74,7 +74,7 @@ SubType  int < T4 (y) < T7 < T6 (a)
 
 #### Drop Intermediate Type Variables
 
-- [ ] Completed
+- [x] Completed
 
 ```diff
 SubType (bool < x < a)

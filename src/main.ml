@@ -59,9 +59,9 @@ let parse_buf_to_ast lexbuf =
         | Constraint_engine.TypeError (a, b) -> print_type_error a b; exit (-1)
       ) untyped_ast in
   Typed_ast.ExpressionPrinter.print_constraint_map constraints;
-
+  print_endline "";
   let constraints = constraints
-    |> Constraint_engine.simplify in
+    |> Constraint_engine.simplify_map in
   constraints
     |> Typed_ast.ExpressionPrinter.print_constraint_map;
 

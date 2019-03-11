@@ -4,14 +4,28 @@ open Ast
 exception TypeError of type_reference * type_reference
 (* exception AssignmentError of expression * expression *)
 
-type constraint_t =
-  | Literal of type_reference * Types.t
-  | FunctionApplication of string * type_reference list * type_reference (* member name, args, return value *)
-  | Equality of type_reference * type_reference
-  | Disjuction of constraint_t list
-  | Overload of type_reference
-  | Class of type_reference
-  | SubType of type_reference * type_reference
+module Constraints = struct
+  type t =
+    | Literal of type_reference * Types.t
+    (* member name, args, return value *)
+    | FunctionApplication of string * type_reference list * type_reference
+    | Equality of type_reference * type_reference
+    | Disjuction of t list
+    | Overload of type_reference
+    | Class of type_reference
+    | SubType of type_reference * type_reference
+
+  let compare a b = match a, b with
+  (* Literals are always sorted first *)
+  | Literal _, _ -> -1
+  | _, Literal _ -> 1
+  (* SubType is second highest priority *)
+  | SubType _, _ -> -1
+  | _, SubType _ -> 1
+  | a, b -> Pervasives.compare a b
+end
+
+type constraint_t = Constraints.t
 
 module ConstraintMap = Map.Make (String)
 
@@ -19,7 +33,6 @@ let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
 let unify_types a b =
   let open TypeTree in
-  Printf.printf "-- %s &\n-- %s\n\n" (Printer.print_inheritance a) (Printer.print_inheritance b);
   try union a b with Incompatible_nodes ->
     let union_t = TUnion((find a).elem, (find b).elem) in
     let union_t_node = TypeTree.make ~root:true ~metadata:a.metadata union_t in
@@ -27,11 +40,14 @@ let unify_types a b =
 
 let unify_types_exn a b = TypeTree.union a b
 
-let append_constraint k c map =
-  let lst = match ConstraintMap.find_opt k map with
+let append_constraint
+  (k : string)
+  (c : Constraints.t)
+  (map : Constraints.t list ConstraintMap.t) =
+    let lst = match ConstraintMap.find_opt k map with
     | Some(lst) -> lst
     | None -> []
-  in map |> ConstraintMap.add k (c :: lst)
+    in map |> ConstraintMap.add k (c :: lst)
 
 let find_or_insert name t tbl =
   if Hashtbl.mem tbl name
@@ -42,32 +58,46 @@ let find_or_insert name t tbl =
   After constraints have been found, iterate over constraints
   until definition for all types can be found.
 *)
-let simplify constraint_map =
-  let step_1 lst = function
-    (* type variable is bound to a literal *)
-    | Literal(ref, t) ->
+let simplify constraint_lst =
+  let reducer lst cst =
+    let action = match cst with
+    | Constraints.Literal(ref, t) ->
+      (* type variable is a literal, unify with literal type reference *)
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
-      lst
-    | _ as cst -> cst :: lst
+      None
+    | Constraints.SubType(supertype, subtype) as st ->
+      (* Types are pointing to the same variable, unify and drop constraint *)
+      if has_binding supertype &&
+        supertype.metadata.binding = subtype.metadata.binding
+      then (unify_types supertype subtype; None)
+      (* supertype is a labeled variable or resolved type, keep constraint *)
+      else if Util.is_some supertype.metadata.binding ||
+        (TypeTree.find supertype).metadata.level = Resolved
+      then Some(st)
+      (* Hierarchy constraint, buuld relationship and drop constraint *)
+      else (supertype.parent := subtype; None)
+    | _ -> Some(cst)
+    in
+    match action with
+    | Some hd -> begin match hd with
+      | Constraints.SubType(_supertype, subtype) ->
+        if Util.is_some (TypeTree.find subtype).metadata.binding
+        then hd :: lst
+        else lst
+      | _ -> hd :: lst
+      end
+    | None -> lst
   in
-  let step_2 lst = function
-    | SubType(subtype, supertype) as st ->
-      if subtype.metadata.binding = supertype.metadata.binding
-      then (unify_types subtype supertype; lst)
-      else if (TypeTree.find subtype).metadata.level = Resolved || Util.is_some subtype.metadata.binding
-      then st :: lst
-      else (subtype.parent := supertype; lst)
-    | _ as cst -> cst :: lst
-  in
+  constraint_lst
+  |> List.sort Constraints.compare
+  |> List.fold_left reducer []
+
+let simplify_map constraint_map =
   let (_eliminated_types, constrained_types) = constraint_map
     |> ConstraintMap.mapi(
-      fun
-        (_key : string)
-        (constraint_lst : constraint_t list) ->
-          constraint_lst
-          |> List.fold_left step_1 []
-          |> List.fold_left step_2 []
+      fun (_key : string) (constraint_lst : constraint_t list) ->
+        simplify constraint_lst
     )
     |> ConstraintMap.partition (
       fun _k v -> (List.compare_length_with v 0) = 0

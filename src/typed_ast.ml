@@ -52,7 +52,7 @@ module ExpressionPrinter = struct
     let prefix = format_constraint "CONSTRAINT:" in
     let open Constraint_engine in
     match v with
-    | FunctionApplication (member, args, receiver_t) ->
+    | Constraints.FunctionApplication (member, args, receiver_t) ->
       printf "%s %-20s (%s) -> %s =Fn { %s.%s }\n"
         prefix
         "FunctionApplication"
@@ -61,11 +61,11 @@ module ExpressionPrinter = struct
                 print_type_reference arg) args))
          else "")
         k (print_type_reference receiver_t) member
-    | Literal (a, t) ->
+    | Constraints.Literal (a, t) ->
       printf "%s %-20s %s = %s\n" prefix "Literal" (print_type_reference a) (type_to_str t)
-    | Equality (a, b) ->
+    | Constraints.Equality (a, b) ->
       printf "%s %-20s %s = %s\n" prefix "Equality" (print_type_reference a) (print_type_reference b)
-    | SubType (a, b) ->
+    | Constraints.SubType (a, b) ->
       printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference a) (print_type_reference b)
     | _ ->
       printf "%s %s => Unknown\n" prefix k

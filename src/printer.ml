@@ -20,12 +20,10 @@ let rec type_to_str = function
   | TUnion (t1, t2) -> Core.sprintf "%s|%s" (type_to_str t1) (type_to_str t2)
 
 let print_type_reference (t : type_reference) =
-  let t' = TypeTree.find t in
-  let name = match t'.metadata.binding with
-  | Some (name) -> Printf.sprintf " (%s)" name
-  | None -> ""
-  in
-  Printf.sprintf "%s%s" (type_to_str t'.elem) name
+  let root_t = TypeTree.find t in
+  match root_t.metadata.binding with
+  | Some (name) -> name
+  | None -> (type_to_str root_t.elem)
 
 let rec print_inheritance (x : type_reference) =
   let deref_parent = !(x.parent) in
