@@ -20,7 +20,7 @@ let rec type_to_str = function
   | TUnion (t1, t2) -> Core.sprintf "%s|%s" (type_to_str t1) (type_to_str t2)
 
 let print_type_reference (t : type_reference) =
-  let root_t = TypeTree.find t in
+  let root_t = Disjoint_set.find t in
   type_to_str root_t.elem
   (* match root_t.metadata.binding with
   | Some (name) -> Printf.sprintf "%s" (type_to_str root_t.elem) name

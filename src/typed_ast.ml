@@ -1,10 +1,6 @@
 open Ast
 open Types
 
-(* Define data structures and types for AST *)
-
-module TypeTree = Disjoint_set
-
 (* Printer Utility *)
 
 module ExpressionPrinter = struct
@@ -72,7 +68,7 @@ module ExpressionPrinter = struct
       printf "%s %s => Unknown\n" prefix k
 
   let print_constraint_map constraint_map =
-    constraint_map |> Constraint_engine.ConstraintMap.iter (fun k vs ->
+    constraint_map |> Constraint_engine.Constraints.Map.iter (fun k vs ->
         vs |> List.iter (fun v -> print_constraint k v);
       )
 end
@@ -89,7 +85,7 @@ let binding_for_expr = function
 let annotate expression =
   let annotate_expression expr location_meta =
     let t = Types.gen_fresh_t () in
-    let t_node = t |> TypeTree.make
+    let t_node = t |> Disjoint_set.make
       ~root:false
       ~metadata:{
         location = (Some location_meta);
@@ -103,6 +99,6 @@ let annotate expression =
 (* AST -> TypedAST *)
 let apply_types ast _constraint_map =
   let annotate_expression expr ({ type_reference; _ } as meta) =
-    (expr, { meta with type_reference = TypeTree.find type_reference })
+    (expr, { meta with type_reference = Disjoint_set.find type_reference })
   in let (expr, meta) = ast in
   replace_metadata annotate_expression expr meta
