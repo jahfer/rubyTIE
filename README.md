@@ -99,73 +99,73 @@ $ dune exec bin/cli.exe data/test_basic.rb
 
 (int : 45)
 
-(params : lvasgn `params
+(hash : lvasgn `params
   (hash : { "key": true, "another": "value" }))
 
-(@x : ivasgn @x
+(symbol : ivasgn @x
   (symbol : :my_symbol))
 
-(T7 : ivar `@x)
+(symbol : ivar `@x)
 
-(FooBar : casgn FooBar
+(float : casgn FooBar
   (float : 151.560000))
 
-(T11 : const
+(float : const
   (T10 : nil) `FooBar)
 
-(stmt1 : lvasgn `stmt1
+(int : lvasgn `stmt1
   (int : 3))
 
-(stmt2 : lvasgn `stmt2
+(int : lvasgn `stmt2
   (int : 1))
 
-(sum0 : def `sum0 ()
+(T17 : def `sum0 ()
   (T16 : false))
 
-(sum1 : def `sum1 (args (arg `thing))
+(T19 : def `sum1 (args (arg `thing))
   (T18 : 45))
 
-(sum2 : def `sum2 (args (arg `thing1) (arg `thing2))
+(T21 : def `sum2 (args (arg `thing1) (arg `thing2))
   (T20 : nil))
 
-(maybe_sum : def `maybe_sum (args (arg `a) (arg `b) (arg `should_do_thing))
+(T23 : def `maybe_sum (args (arg `a) (arg `b) (arg `should_do_thing))
   (T22 : nil))
 
 (bool : false)
 
-(y : lvasgn `y
+(array<T65> : lvasgn `y
   (array<T65> : [1 2 3]))
 
-(z : send
-  (T27 : lvar `y) `first)
+(T31 : send
+  (array<T65> : lvar `y) `first)
 
-(z : lvasgn `z
-  (z : send
-    (T29 : lvar `y) `first))
+(T31 : lvasgn `z
+  (T31 : send
+    (array<T65> : lvar `y) `first))
 
-(func1 : lvasgn `func1
+(lambda<? -> T33> : lvasgn `func1
   (lambda<? -> T33> : lambda ()
-    (x : lvasgn `x
+    (int : lvasgn `x
     (int : 45))))
 
-(func2 : lvasgn `func2
+(lambda<? -> T36> : lvasgn `func2
   (lambda<? -> T36> : lambda (args (arg `local))
     (nil : nil)))
 
-(func3 : lvasgn `func3
+(lambda<? -> T40> : lvasgn `func3
   (lambda<? -> T40> : lambda (args (arg `local) (arg `_x))
     (T63 : send
     (T62 : lvar `local) `first)))
 
 (T45 : send
-  (T43 : lvar `func3) `call
-    (T44 : lvar `y))
+  (lambda<? -> T40> : lvar `func3) `call
+    (array<T65> : lvar `y))
 
-(b : lvasgn `b
+(int : lvasgn `b
   (int : 3))
 
-(a : lvasgn `a
-  (a : lvar `b))
+(int : lvasgn `a
+  (int : lvar `b))
 
 (T52 : send
   (nil : nil) `sum1
