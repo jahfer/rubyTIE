@@ -14,22 +14,35 @@ Very much a work-in-progress. I have no idea what I'm doing.
 3|
 4| a = x
 5| a = y
+6|
+7| z = a.foo
+8| z
+9| y
+
 ```
 
 **Output**
 
-```
+```clj
 (bool : lvasgn `x
   (bool : false))
 
 (int : lvasgn `y
   (int : 3))
 
-(bool : lvasgn `a
-  (bool : lvar `x))
+(int|bool : lvasgn `a
+  (int|bool : lvar `x))
 
-(bool|int : lvasgn `a
-  (bool|int : lvar `y))
+(int|bool : lvasgn `a
+  (int|bool : lvar `y))
+
+(T11 : lvasgn `z
+  (T11 : send
+   (int|bool : lvar `a) `foo))
+
+(T11 : lvar `z)
+
+(int : lvar `y)
 ```
 
 ### Kitchen Sink
