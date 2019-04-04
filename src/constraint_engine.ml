@@ -51,8 +51,6 @@ let base_type_cache =
       type_map := BaseTypeMap.add base_type t !type_map;
       t
 
-let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
-
 let unify_types a b =
   let open Disjoint_set in
   try union a b with Incompatible_nodes ->
@@ -112,13 +110,14 @@ let simplify_map (constraint_map : Constraints.map_t) : Constraints.map_t =
     )
   in constrained_types
 
-let unify_constraints
-  (nodes : (type_reference * type_reference list) list) : type_reference list =
+let unify_constraints nodes : type_reference list =
 
   let type_cache = base_type_cache () in
 
-  (* TODO: Dependency resolution should only happen once *)
-  let rec unify_constraints_for_subtype (subtype, supertypes) : type_reference =
+  (* TODO: Dependency resolution should only happen once...does it? *)
+  let rec unify_constraints_for_subtype
+    ((subtype, supertypes) : type_reference * type_reference list) =
+
     let rec create_union_t = function
     | [] -> type_cache TAny
     | (x :: []) -> x
@@ -197,6 +196,8 @@ let find_or_insert name t tbl =
   if Hashtbl.mem tbl name
   then Some(Hashtbl.find tbl name)
   else (Hashtbl.add tbl name t; None)
+
+let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
 let rec build_constraints constraint_map (expr, { type_reference; _ }) =
 
