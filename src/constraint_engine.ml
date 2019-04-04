@@ -58,7 +58,7 @@ let unify_types a b =
     let union_t_node = Disjoint_set.make ~root:true ~metadata:a.metadata union_t in
     replace_root a union_t_node
 
-(* After constraints have been found, iterate over constraints
+(** After constraints have been found, iterate over constraints
    until definition for all types can be found. *)
 let simplify base_type_reference constraint_lst =
   let reducer lst cst =
@@ -98,6 +98,7 @@ let simplify base_type_reference constraint_lst =
   |> List.sort Constraints.compare
   |> List.fold_left reducer []
 
+(** Given a constraint map, reduce constraints within to simpler versions *)
 let simplify_map (constraint_map : Constraints.map_t) : Constraints.map_t =
   let type_cache = base_type_cache () in
   let (_eliminated_types, constrained_types) = constraint_map
@@ -110,6 +111,7 @@ let simplify_map (constraint_map : Constraints.map_t) : Constraints.map_t =
     )
   in constrained_types
 
+(** Given a list of types and their supertypes, generate final resolved types *)
 let unify_constraints nodes : type_reference list =
 
   let type_cache = base_type_cache () in
@@ -140,8 +142,7 @@ let unify_constraints nodes : type_reference list =
     in union_t
   in List.map unify_constraints_for_subtype nodes
 
-(* Given a set of constraints, derive final types *)
-
+(** Given a set of constraints, derive final types *)
 let solve
   (constraint_map : Constraints.map_t) =
   constraint_map
@@ -198,6 +199,8 @@ let find_or_insert name t tbl =
   else (Hashtbl.add tbl name t; None)
 
 let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
+
+(** Given an untyped AST, generate constraints based on node interactions *)
 
 let rec build_constraints constraint_map (expr, { type_reference; _ }) =
 
