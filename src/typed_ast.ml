@@ -52,21 +52,22 @@ module ExpressionPrinter = struct
     let prefix = format_constraint "CONSTRAINT:" in
     let open Constraint_engine in
     match v with
-    | Constraints.FunctionApplication (member, args, receiver_t) ->
-      printf "%s %-20s (%s) -> %s =Fn { %s.%s }\n"
+    | Constraints.Method (method_name, args, receiver_t, return_t) ->
+      printf "%s %-20s %s.%s(%s) == %s\n"
         prefix
-        "FunctionApplication"
+        "Method"
+        (print_type_reference receiver_t)
+        method_name
         (if List.length args > 0 then
-           (String.concat ", " (List.map (fun arg ->
-                print_type_reference arg) args))
+           (String.concat ", " (List.map (fun arg -> print_type_reference arg) args))
          else "")
-        k (print_type_reference receiver_t) member
+        (print_type_reference return_t)
     | Constraints.Literal (a, t) ->
       printf "%s %-20s %s = %s\n" prefix "Literal" (print_type_reference a) (type_to_str t)
     | Constraints.Equality (a, b) ->
       printf "%s %-20s %s = %s\n" prefix "Equality" (print_type_reference a) (print_type_reference b)
-    | Constraints.SubType (a, b) ->
-      printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference a) (print_type_reference b)
+    | Constraints.SubType (child, parent) ->
+      printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference parent) (print_type_reference child)
     | _ ->
       printf "%s %s => Unknown\n" prefix k
 
@@ -100,8 +101,7 @@ let annotate expression =
   replace_metadata annotate_expression expr location_meta
 
 (* AST -> TypedAST *)
-let apply_constraints ast _constraint_map =
-  (* TODO: Write actual constraint solver *)
+let apply_types ast _constraint_map =
   let annotate_expression expr ({ type_reference; _ } as meta) =
     (expr, { meta with type_reference = TypeTree.find type_reference })
   in let (expr, meta) = ast in

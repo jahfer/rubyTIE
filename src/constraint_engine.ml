@@ -7,7 +7,9 @@ exception TypeError of type_reference * type_reference
 module Constraints = struct
   type t =
     | Literal of type_reference * Types.t
-    (* member name, args, return value *)
+    (* member name, args, receiver, return type *)
+    | Method of string * type_reference list * type_reference * type_reference
+    (* name, args, return type *)
     | FunctionApplication of string * type_reference list * type_reference
     | Equality of type_reference * type_reference
     | Disjuction of t list
@@ -16,18 +18,38 @@ module Constraints = struct
     | SubType of type_reference * type_reference
 
   let compare a b = match a, b with
-  (* Literals are always sorted first *)
-  | Literal _, _ -> -1
-  | _, Literal _ -> 1
-  (* SubType is second highest priority *)
-  | SubType _, _ -> -1
-  | _, SubType _ -> 1
-  | a, b -> Pervasives.compare a b
+    (* Literals are always sorted first *)
+    | Literal _, _ -> -1 | _, Literal _ -> 1
+    (* SubType is second highest priority *)
+    | SubType _, _ -> -1 | _, SubType _ -> 1
+    | a, b -> Pervasives.compare a b
 end
 
 type constraint_t = Constraints.t
 
 module ConstraintMap = Map.Make (String)
+
+type constraint_map_t = constraint_t list ConstraintMap.t
+
+module BaseTypeMap = Map.Make (Types.BaseType)
+
+(** Looks up type_reference for literal type. If not found,
+ ** it will produce a type_reference and store it internally
+ ** for next lookup. *)
+let dynamic_type_lookup =
+  fun () -> let type_map = ref BaseTypeMap.empty in
+  fun (base_type : BaseType.t) : type_reference ->
+    match !type_map |> BaseTypeMap.find_opt base_type with
+    | Some (type_ref) -> type_ref
+    | None ->
+      let t = base_type
+      |> TypeTree.make ~root:true ~metadata:{
+        location = None;
+        binding = None;
+        level = Resolved
+      } in
+      type_map := BaseTypeMap.add base_type t !type_map;
+      t
 
 let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
@@ -58,7 +80,7 @@ let find_or_insert name t tbl =
   After constraints have been found, iterate over constraints
   until definition for all types can be found.
 *)
-let simplify constraint_lst =
+let simplify base_type_reference constraint_lst =
   let reducer lst cst =
     let action = match cst with
     | Constraints.Literal(ref, t) ->
@@ -75,16 +97,19 @@ let simplify constraint_lst =
       else if Util.is_some supertype.metadata.binding ||
         (TypeTree.find supertype).metadata.level = Resolved
       then Some(st)
-      (* Hierarchy constraint, buuld relationship and drop constraint *)
+      (* Hierarchy constraint, build relationship and drop constraint *)
       else (supertype.parent := subtype; None)
     | _ -> Some(cst)
     in
     match action with
     | Some hd -> begin match hd with
-      | Constraints.SubType(_supertype, subtype) ->
+      | Constraints.SubType(supertype, subtype) ->
         if Util.is_some (TypeTree.find subtype).metadata.binding
         then hd :: lst
-        else lst
+        else begin
+          unify_types supertype subtype;
+          lst
+        end
       | _ -> hd :: lst
       end
     | None -> lst
@@ -93,16 +118,75 @@ let simplify constraint_lst =
   |> List.sort Constraints.compare
   |> List.fold_left reducer []
 
-let simplify_map constraint_map =
+let simplify_map (constraint_map : constraint_map_t) : constraint_map_t =
+  let base_type_reference = dynamic_type_lookup () in
   let (_eliminated_types, constrained_types) = constraint_map
     |> ConstraintMap.mapi(
       fun (_key : string) (constraint_lst : constraint_t list) ->
-        simplify constraint_lst
+        simplify base_type_reference constraint_lst
     )
     |> ConstraintMap.partition (
       fun _k v -> (List.compare_length_with v 0) = 0
     )
   in constrained_types
+
+module ConstraintSet = Set.Make (Constraints)
+
+let unify_constraints (nodes : (type_reference * type_reference list) list) : type_reference list =
+  let base_type_reference = dynamic_type_lookup () in
+  let rec unify_constraints_for_subtype (subtype, supertypes) : type_reference =
+    let rec unify_all supertypes : type_reference =
+      print_string "Unifying types: ";
+      print_endline @@ String.concat ", " @@ List.map Printer.print_type_reference supertypes;
+      match supertypes with
+      | x :: y :: tail ->
+        begin match TypeTree.((find x).elem, (find y).elem) with
+        | TPoly(_), _ ->
+          Printf.printf "Resolving type dependency: %s\n" @@ Printer.print_type_reference x;
+          (* Resolve dependencies for polymorphic type variable *)
+          let _ = unify_constraints_for_subtype (x, (List.assq x nodes)) in
+          unify_all supertypes
+        | _, TPoly(_) ->
+          Printf.printf "Resolving type dependency: %s\n" @@ Printer.print_type_reference y;
+          (* Resolve dependencies for polymorphic type variable *)
+          let _ = unify_constraints_for_subtype (y, (List.assq y nodes)) in
+          unify_all supertypes
+        | _ ->
+          Printf.printf "Unifying base types: %s, %s\n" (Printer.print_type_reference x) (Printer.print_type_reference y);
+          (* Build union of base types *)
+          let t = TUnion((TypeTree.find x).elem, (TypeTree.find y).elem) in
+          let t_ref = TypeTree.make ~root:true ~metadata:x.metadata t in
+          print_endline @@ (Printer.print_type_reference t_ref);
+          unify_all (t_ref :: tail)
+        end
+      | x :: [] -> Printf.printf "✅  Only one dependency: %s\n" (Printer.print_type_reference x); x
+      | [] -> base_type_reference TAny
+    in let union_t = unify_all supertypes
+    in let () = unify_types subtype union_t
+    in union_t
+  in List.map unify_constraints_for_subtype nodes
+
+let solve
+  (constraint_map : constraint_map_t) =
+  constraint_map
+  |> ConstraintMap.bindings
+  |> List.map (fun (_, v) -> v)
+  |> List.flatten
+  (* nodes : a list of (subtype, supertype list) *)
+  |> List.fold_left (fun nodes -> function
+    | Constraints.SubType (supertype, subtype) ->
+      let supertype = TypeTree.find supertype in
+      let subtype = TypeTree.find subtype in
+      begin
+      match List.assq_opt subtype nodes with
+      | Some (parents) ->
+        (subtype, supertype :: parents) :: (List.remove_assq subtype nodes)
+      | None -> (subtype, supertype :: []) :: nodes
+      end
+    | _ -> nodes
+  ) []
+  |> unify_constraints
+  (* |> List.iter(fun t -> print_endline @@ Printer.print_type_reference t) *)
 
 type constraint_category =
   | ReferenceConstraint of string
@@ -172,7 +256,7 @@ let rec build_constraints constraint_map (expr, { type_reference; _ }) =
           | _ -> constraint_map
         end
         |> Util.flip build_constraints receiver_expression
-        |> append_constraint type_var_name @@ FunctionApplication (meth, arg_types, receiver_type)
+        |> append_constraint type_var_name @@ Method (meth, arg_types, receiver_type, type_reference)
         |> Util.flip (List.fold_left build_constraints) args
 
       (* Lambda definition *)

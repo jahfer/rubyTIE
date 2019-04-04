@@ -1,2 +1,9 @@
 x = false
-y = x
+y = 3
+
+a = x
+a = y
+
+z = a.foo
+z
+y

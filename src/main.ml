@@ -26,23 +26,6 @@ let parse_with_error lexbuf =
     Format.fprintf Format.std_formatter "%a: syntax error ('%s')\n" print_position lexbuf tok;
     exit (-1)
 
-let print_type_error (a : Types.type_reference) (b : Types.type_reference) =
-  Printf.printf "-- TYPE ERROR %s\n\n" (String.make 40 '-');
-  Printf.printf "Type `%s` is not compatible with type `%s`\n"
-    (Printer.type_to_str (Disjoint_set.find a).elem)
-    (Printer.type_to_str (Disjoint_set.find b).elem);
-  let () = match b.metadata.location with
-    | Some (loc) ->
-      Location.print_loc loc;
-      Printf.printf " type is initialized as `%s` here\n" (Printer.type_to_str (Disjoint_set.find b).elem);
-    | None -> ()
-  in
-  match a.metadata.location with
-  | Some (loc) ->
-    Location.print_loc loc;
-    Printf.printf " but used as `%s` here\n" (Printer.type_to_str (Disjoint_set.find a).elem)
-  | None -> ()
-
 let parse_buf_to_ast lexbuf =
   (* iterate through buffer to cumulatively build untyped AST *)
   let rec build_untyped_ast lexbuf acc =
@@ -56,20 +39,26 @@ let parse_buf_to_ast lexbuf =
   let constraints = ConstraintMap.empty
     |> List.fold_right (fun x acc ->
         try build_constraints acc x with
-        | Constraint_engine.TypeError (a, b) -> print_type_error a b; exit (-1)
+        | Constraint_engine.TypeError (a, b) -> Printer.print_type_error a b; exit (-1)
       ) untyped_ast in
-  Typed_ast.ExpressionPrinter.print_constraint_map constraints;
-  print_endline "";
-  let constraints = constraints
-    |> Constraint_engine.simplify_map in
-  constraints
-    |> Typed_ast.ExpressionPrinter.print_constraint_map;
 
-  (* Simplify and solve constraints *)
-  let typed_ast = List.map (fun ast -> Typed_ast.apply_constraints ast constraints) untyped_ast in
-  List.iter (fun ast ->
-      Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)
-    (List.rev typed_ast)
+  (* Simplify constraints *)
+  let _ = constraints |> Typed_ast.ExpressionPrinter.print_constraint_map in
+  print_newline ();
+
+  let constraints = constraints |> Constraint_engine.simplify_map in
+  let _ = constraints |> Typed_ast.ExpressionPrinter.print_constraint_map in
+  let _ = try constraints |> Constraint_engine.solve with
+    | Constraint_engine.TypeError (a, b) ->
+      Printer.print_type_error a b; exit (-1)
+  in
+
+  untyped_ast
+    |> List.map (fun ast ->
+        Typed_ast.apply_types ast constraints)
+    |> List.rev
+    |> List.iter (fun ast ->
+        Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)
 
 let parse_from_filename filename =
   let inx = Core.In_channel.create filename in

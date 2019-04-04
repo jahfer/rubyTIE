@@ -77,14 +77,3 @@ let typeof_expr = let open Ast in function
     | ExprIVarAssign (_, (_, metadata))
     | ExprCall ((_, metadata), _, _)
     | ExprConstAssign (_, (_, metadata)) -> SpecializedType(metadata.type_reference)
-
-module BaseTypeMap = Map.Make (BaseType)
-
-let base_type_reference =
-  let type_map = BaseTypeMap.empty in
-  fun (base_type : BaseType.t) : type_reference ->
-    match type_map |> BaseTypeMap.find_opt base_type with
-    | Some (type_ref) -> type_ref
-    | None -> base_type |> TypeTree.make
-      ~root:true
-      ~metadata:{ location = None; binding = None; level = Resolved }

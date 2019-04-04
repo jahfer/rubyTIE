@@ -21,13 +21,24 @@ let rec type_to_str = function
 
 let print_type_reference (t : type_reference) =
   let root_t = TypeTree.find t in
-  match root_t.metadata.binding with
-  | Some (name) -> name
-  | None -> (type_to_str root_t.elem)
+  type_to_str root_t.elem
+  (* match root_t.metadata.binding with
+  | Some (name) -> Printf.sprintf "%s" (type_to_str root_t.elem) name
+  | None -> (type_to_str root_t.elem) *)
 
-let rec print_inheritance (x : type_reference) =
-  let deref_parent = !(x.parent) in
-  if deref_parent != x then
-    Core.sprintf "%s > %s" (print_inheritance !(x.parent)) (print_type_reference x)
-  else
-    Core.sprintf "[%s {%i}]" (print_type_reference x) !(x.rank)
+let print_type_error (a : Types.type_reference) (b : Types.type_reference) =
+  Printf.printf "-- TYPE ERROR %s\n\n" (String.make 40 '-');
+  Printf.printf "Type `%s` is not compatible with type `%s`\n"
+    (type_to_str (Disjoint_set.find a).elem)
+    (type_to_str (Disjoint_set.find b).elem);
+  let () = match b.metadata.location with
+    | Some (loc) ->
+      Location.print_loc loc;
+      Printf.printf " type is initialized as `%s` here\n" (type_to_str (Disjoint_set.find b).elem);
+    | None -> ()
+  in
+  match a.metadata.location with
+  | Some (loc) ->
+    Location.print_loc loc;
+    Printf.printf " used as `%s` here\n" (type_to_str (Disjoint_set.find a).elem)
+  | None -> ()
