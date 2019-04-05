@@ -61,25 +61,20 @@ let unify_types a b =
 
 (** After constraints have been found, iterate over constraints
    until definition for all types can be found. *)
-let simplify base_type_reference constraint_lst =
+let simplify_type_constraints base_type_reference constraint_lst =
   let reducer lst cst =
     let action = match cst with
     | Constraints.Literal (ref, t) ->
       (* type variable is a literal, unify with literal type reference *)
       let base_reference = base_type_reference t in
-      unify_types ref base_reference;
+      Disjoint_set.union ref base_reference;
       None
     | Constraints.SubType (subtype, supertype) as st ->
-      (* Types are pointing to the same variable, unify and drop constraint *)
-      if has_binding supertype &&
+      (* types are pointing to the same variable, unify and drop constraint *)
+      if Util.is_some supertype.metadata.binding &&
         supertype.metadata.binding = subtype.metadata.binding
       then (unify_types supertype subtype; None)
-      (* supertype is a labeled variable or resolved type, keep constraint *)
-      else if Util.is_some supertype.metadata.binding ||
-        (Disjoint_set.find supertype).metadata.level = Resolved
-      then Some(st)
-      (* Hierarchy constraint, build relationship and drop constraint *)
-      else (supertype.parent := subtype; None)
+      else Some(st)
     | _ -> Some(cst)
     in
     match action with
@@ -87,6 +82,7 @@ let simplify base_type_reference constraint_lst =
       | Constraints.SubType (subtype, supertype) ->
         if Util.is_some (Disjoint_set.find subtype).metadata.binding
         then hd :: lst
+        (* subtype is anonymous, unification is safe as there's only one relationship *)
         else begin
           unify_types supertype subtype;
           lst
@@ -100,12 +96,14 @@ let simplify base_type_reference constraint_lst =
   |> List.fold_left reducer []
 
 (** Given a constraint map, reduce constraints within to simpler versions *)
-let simplify_map (constraint_map : Constraints.map_t) : Constraints.map_t =
+let simplify (constraint_map : Constraints.map_t) : Constraints.map_t =
   let type_cache = base_type_cache () in
   let (_eliminated_types, constrained_types) = constraint_map
     |> Constraints.Map.mapi(
-      fun (_key : string) (constraint_lst : Constraints.t list) ->
-        simplify type_cache constraint_lst
+      fun
+        (_key : string)
+        (constraint_lst : Constraints.t list) ->
+          simplify_type_constraints type_cache constraint_lst
     )
     |> Constraints.Map.partition (
       fun _k v -> (List.compare_length_with v 0) = 0
@@ -203,7 +201,7 @@ let reference_table : (string, type_reference) Hashtbl.t = Hashtbl.create 1000
 
 (** Given an untyped AST, generate constraints based on node interactions *)
 
-let rec build_constraints constraint_map (expr, { type_reference; _ }) =
+let rec build_constraints (expr, { type_reference; _ }) constraint_map =
 
   let rec build_constraint type_var_name = function
 
@@ -225,7 +223,7 @@ let rec build_constraints constraint_map (expr, { type_reference; _ }) =
           let constraint_map =
             ReferenceConstraint name
             |> build_constraint type_var_name
-            |> Util.flip build_constraints iexpr in
+            |> build_constraints iexpr in
           match expr_type.elem with
           | TPoly t ->
             constraint_map
@@ -245,23 +243,24 @@ let rec build_constraints constraint_map (expr, { type_reference; _ }) =
         let (receiver_expr, {type_reference = receiver_type; _}) = receiver_expression
         and arg_types = args
           |> List.map (fun (_, {type_reference; _}) -> type_reference)
-        in begin
+        in
+        let map = begin
           match (expr_to_constraint_category receiver_expr) with
           | ReferenceConstraint (receiver_name) ->
             let method_name = String.concat "" [ receiver_name; "#"; meth ] in
             build_constraint type_var_name @@ ReferenceConstraint method_name
           | _ -> constraint_map
         end
-        |> Util.flip build_constraints receiver_expression
+        |> build_constraints receiver_expression
         |> append_constraint type_var_name @@ Method (meth, arg_types, receiver_type, type_reference)
-        |> Util.flip (List.fold_left build_constraints) args
+        in List.fold_left (Util.flip build_constraints) map args
 
       (* Lambda definition *)
       | ExprLambda (_, expression) ->
         let (_, {type_reference = return_type_node; _}) = expression in
         let return_type = (Disjoint_set.find return_type_node).elem in
         let lambda_type = TLambda([TAny], return_type) in
-        build_constraints constraint_map expression
+        build_constraints expression constraint_map
         |> append_constraint type_var_name @@ Literal (type_reference, lambda_type)
 
       | _ -> constraint_map

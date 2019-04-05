@@ -5,7 +5,7 @@ open Types
 
 module ExpressionPrinter = struct
   open Types
-  open Ruby_tie__Printer
+  open Printer
   open Printf
 
   let rec print_type_referenced_expr ~indent outc = function
@@ -93,7 +93,7 @@ let annotate expression =
   replace_metadata annotate_expression expr location_meta
 
 (* AST -> TypedAST *)
-let apply_types ast _constraint_map =
+let resolve_types ast =
   let annotate_expression expr ({ type_reference; _ } as meta) =
     (expr, { meta with type_reference = Disjoint_set.find type_reference })
   in let (expr, meta) = ast in

@@ -51,10 +51,6 @@ type type_metadata = {
 (* Structure of type variable *)
 type type_reference = (t, type_metadata) Disjoint_set.t
 
-let has_binding (t : type_reference) = match t.metadata.binding with
-| Some _ -> true
-| None -> false
-
 (* Information stored alongside each expression *)
 type expr_metadata = {
   expr_loc : Location.t;

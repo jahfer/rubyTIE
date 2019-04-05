@@ -16,8 +16,8 @@ end
 
 val base_type_cache : unit -> Types.BaseType.t -> Types.type_reference
 
-val build_constraints : Constraints.map_t -> Types.expr_metadata Ast.expression -> Constraints.map_t
+val build_constraints : Types.expr_metadata Ast.expression -> Constraints.map_t -> Constraints.map_t
 
-val simplify_map : Constraints.map_t -> Constraints.map_t
+val simplify : Constraints.map_t -> Constraints.map_t
 
 val solve : Constraints.map_t -> Types.type_reference list
