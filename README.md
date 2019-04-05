@@ -23,26 +23,27 @@ Very much a work-in-progress. I have no idea what I'm doing.
 
 **Output**
 
-```clj
-(bool : lvasgn `x
-  (bool : false))
+```racket
+ (lvasgn `x
+  (false : bool) : bool)
 
-(int : lvasgn `y
-  (int : 3))
+ (lvasgn `y
+  (3 : int) : int)
 
-(int|bool : lvasgn `a
-  (int|bool : lvar `x))
+ (lvasgn `a
+  (lvar `x : int|bool) : int|bool)
 
-(int|bool : lvasgn `a
-  (int|bool : lvar `y))
+ (lvasgn `a
+  (lvar `y : int|bool) : int|bool)
 
-(T11 : lvasgn `z
-  (T11 : send
-   (int|bool : lvar `a) `foo))
+ (lvasgn `z
+  (send
+   (lvar `a : int|bool) `foo : T11) : T11)
 
-(T11 : lvar `z)
+ (send
+  (lvar `z : T11) `bar : T13)
 
-(int : lvar `y)
+ (lvar `y : int)
 ```
 
 ### Kitchen Sink
@@ -108,94 +109,94 @@ $ dune exec bin/cli.exe data/test_basic.rb
 **Output**
 
 ```clj
-(T1 : lvar `foo)
+(lvar `foo : T1)
 
-(int : 45)
+(45 : int)
 
-(hash : lvasgn `params
-  (hash : { "key": true, "another": "value" }))
+(lvasgn `params
+  ({ "key": true, "another": "value" } : hash) : hash)
 
-(symbol : ivasgn @x
-  (symbol : :my_symbol))
+(ivasgn @x
+  (:my_symbol : symbol) : symbol)
 
-(symbol : ivar `@x)
+(ivar `@x : symbol)
 
-(float : casgn FooBar
-  (float : 151.560000))
+(casgn FooBar
+  (151.560000 : float) : float)
 
-(float : const
-  (T10 : nil) `FooBar)
+(const
+  (nil : T10) `FooBar : float)
 
-(int : lvasgn `stmt1
-  (int : 3))
+(lvasgn `stmt1
+  (3 : int) : int)
 
-(int : lvasgn `stmt2
-  (int : 1))
+(lvasgn `stmt2
+  (1 : int) : int)
 
-(T17 : def `sum0 ()
-  (T16 : false))
+(def `sum0 ()
+  (false : T16) : T17)
 
-(T19 : def `sum1 (args (arg `thing))
-  (T18 : 45))
+(def `sum1 (args (arg `thing))
+  (45 : T18) : T19)
 
-(T21 : def `sum2 (args (arg `thing1) (arg `thing2))
-  (T20 : nil))
+(def `sum2 (args (arg `thing1) (arg `thing2))
+  (nil : T20) : T21)
 
-(T23 : def `maybe_sum (args (arg `a) (arg `b) (arg `should_do_thing))
-  (T22 : nil))
+(def `maybe_sum (args (arg `a) (arg `b) (arg `should_do_thing))
+  (nil : T22) : T23)
 
-(bool : false)
+(false : bool)
 
-(array<T65> : lvasgn `y
-  (array<T65> : [1 2 3]))
+(lvasgn `y
+  ([1 2 3] : array<T65>) : array<T65>)
 
-(T31 : send
-  (array<T65> : lvar `y) `first)
+(send
+  (lvar `y : array<T65>) `first : T31)
 
-(T31 : lvasgn `z
-  (T31 : send
-    (array<T65> : lvar `y) `first))
+(lvasgn `z
+  (send
+    (lvar `y : array<T65>) `first : T31) : T31)
 
-(lambda<? -> T33> : lvasgn `func1
-  (lambda<? -> T33> : lambda ()
-    (int : lvasgn `x
-    (int : 45))))
+(lvasgn `func1
+  (lambda ()
+    (lvasgn `x
+      (45 : int) : int) : lambda<? -> T33>) : lambda<? -> T33>)
 
-(lambda<? -> T36> : lvasgn `func2
-  (lambda<? -> T36> : lambda (args (arg `local))
-    (nil : nil)))
+(lvasgn `func2
+  (lambda (args (arg `local))
+    (nil : nil) : lambda<? -> T36>) : lambda<? -> T36>)
 
-(lambda<? -> T40> : lvasgn `func3
-  (lambda<? -> T40> : lambda (args (arg `local) (arg `_x))
-    (T63 : send
-    (T62 : lvar `local) `first)))
+(lvasgn `func3
+  (lambda (args (arg `local) (arg `_x))
+    (send
+      (lvar `local : T62) `first : T63) : lambda<? -> T40>) : lambda<? -> T40>)
 
-(T45 : send
-  (lambda<? -> T40> : lvar `func3) `call
-    (array<T65> : lvar `y))
+(send
+  (lvar `func3 : lambda<? -> T40>) `call
+    (lvar `y : array<T65>) : T45)
 
-(int : lvasgn `b
-  (int : 3))
+(lvasgn `b
+  (3 : int) : int)
 
-(int : lvasgn `a
-  (int : lvar `b))
+(lvasgn `a
+  (lvar `b : int) : int)
 
-(T52 : send
+(send
   (nil : nil) `sum1
-    (int : 5))
+    (5 : int) : T52)
 
-(T56 : send
+(send
   (nil : nil) `sum2
-    (int : 1)
-    (int : 2))
+    (1 : int)
+    (2 : int) : T56)
 
-(T61 : send
+(send
   (nil : nil) `maybe_sum
-    (int : 3)
-    (int : 5)
-    (bool : false))
+    (3 : int)
+    (5 : int)
+    (false : bool) : T61)
 
-(lambda<? -> T63> : lambda (args (arg `local) (arg `_x))
-  (T63 : send
-    (T62 : lvar `local) `first))
+(lambda (args (arg `local) (arg `_x))
+  (send
+    (lvar `local : T62) `first : T63) : lambda<? -> T63>)
 ```
