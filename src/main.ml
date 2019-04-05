@@ -36,11 +36,10 @@ let parse_buf_to_ast lexbuf =
   in let untyped_ast : 'a Ast.expression list = build_untyped_ast lexbuf [] in
   (* Find constraints based on interaction within AST *)
   let open Constraint_engine in
-  let constraints = Constraints.Map.empty
-    |> List.fold_right (fun x acc ->
+  let constraints = List.fold_right (fun x acc ->
         try build_constraints acc x with
         | Constraint_engine.TypeError (a, b) -> Printer.print_type_error a b; exit (-1)
-      ) untyped_ast in
+      ) untyped_ast Constraints.Map.empty in
 
   (* Simplify constraints *)
   let constraints = constraints |> Constraint_engine.simplify_map in

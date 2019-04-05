@@ -10,15 +10,15 @@ exception TypeError of type_reference * type_reference
 module Constraints = struct
   type t =
     | Literal of type_reference * Types.t
+    | SubType of type_reference * type_reference
     (* member name, args, receiver, return type *)
     | Method of string * type_reference list * type_reference * type_reference
     (* name, args, return type *)
-    | FunctionApplication of string * type_reference list * type_reference
+    (* | FunctionApplication of string * type_reference list * type_reference
     | Equality of type_reference * type_reference
     | Disjuction of t list
     | Overload of type_reference
-    | Class of type_reference
-    | SubType of type_reference * type_reference
+    | Class of type_reference *)
 
   let compare a b = match a, b with
     (* Literals are always sorted first *)
@@ -51,6 +51,7 @@ let base_type_cache =
       type_map := BaseTypeMap.add base_type t !type_map;
       t
 
+(**  *)
 let unify_types a b =
   let open Disjoint_set in
   try union a b with Incompatible_nodes ->
@@ -63,12 +64,12 @@ let unify_types a b =
 let simplify base_type_reference constraint_lst =
   let reducer lst cst =
     let action = match cst with
-    | Constraints.Literal(ref, t) ->
+    | Constraints.Literal (ref, t) ->
       (* type variable is a literal, unify with literal type reference *)
       let base_reference = base_type_reference t in
       unify_types ref base_reference;
       None
-    | Constraints.SubType(supertype, subtype) as st ->
+    | Constraints.SubType (subtype, supertype) as st ->
       (* Types are pointing to the same variable, unify and drop constraint *)
       if has_binding supertype &&
         supertype.metadata.binding = subtype.metadata.binding
@@ -83,7 +84,7 @@ let simplify base_type_reference constraint_lst =
     in
     match action with
     | Some hd -> begin match hd with
-      | Constraints.SubType(supertype, subtype) ->
+      | Constraints.SubType (subtype, supertype) ->
         if Util.is_some (Disjoint_set.find subtype).metadata.binding
         then hd :: lst
         else begin
@@ -151,7 +152,7 @@ let solve
   |> List.flatten
   (* nodes : a list of (subtype, supertype list) *)
   |> List.fold_left (fun nodes -> function
-    | Constraints.SubType (supertype, subtype) ->
+    | Constraints.SubType (subtype, supertype) ->
       let supertype = Disjoint_set.find supertype in
       let subtype = Disjoint_set.find subtype in
       begin
@@ -213,7 +214,7 @@ let rec build_constraints constraint_map (expr, { type_reference; _ }) =
       begin match opt_existing_type with
         | Some (existing_type) ->
           constraint_map
-          |> append_constraint type_var_name @@ SubType (existing_type, type_reference)
+          |> append_constraint type_var_name @@ SubType (type_reference, existing_type)
         | None -> constraint_map
       end
 
@@ -228,7 +229,7 @@ let rec build_constraints constraint_map (expr, { type_reference; _ }) =
           match expr_type.elem with
           | TPoly t ->
             constraint_map
-            |> append_constraint t @@ SubType (expr_type, type_reference)
+            |> append_constraint t @@ SubType (type_reference, expr_type)
           | _ -> constraint_map
       end
 

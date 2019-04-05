@@ -8,7 +8,7 @@ let gen_type elt =
   let default_metadata = { location = None; binding = None; level = Unresolved } in
   Util.Disjoint_set.make ~root:false ~metadata:default_metadata elt
 
-let test_unify_constraints _ =
+let test_solve _ =
   let t1 = (gen_type @@ TPoly "T1") in
   let t2 = (gen_type @@ TPoly "T2") in
   let t3 = (gen_type @@ TPoly "T3") in
@@ -16,19 +16,20 @@ let test_unify_constraints _ =
   let bool_t = type_cache TBool in
   let int_t = type_cache TInt in
 
-  let _ = ConstraintEngine.unify_constraints [
-    (t1, [t2; t3]); (t2, [bool_t]); (t3, [int_t]);
+  let open ConstraintEngine.Constraints in
+  let constraints = Map.empty |> Map.add_seq @@ List.to_seq [
+    ("T1", [ SubType(t1, t2); SubType(t1, t3) ]);
+    ("T2", [ SubType(t2, bool_t) ]);
+    ("T3", [ SubType(t3, int_t) ]);
   ] in
 
-  let open Util.Disjoint_set in
-  let t1' = find t1 in
-  let t2' = find t2 in
-  let t3' = find t3 in
+  let _ = ConstraintEngine.solve constraints in
 
-  assert_equal (TUnion(TBool, TInt)) t1'.elem;
-  assert_equal TBool t2'.elem;
-  assert_equal TInt t3'.elem
+  let open Util.Disjoint_set in
+  assert_equal (TUnion(TInt, TBool)) (find t1).elem;
+  assert_equal TBool (find t2).elem;
+  assert_equal TInt (find t3).elem
 
 let suite = "Constraint Engine Tests" >::: [
-  "unify_constraints" >:: test_unify_constraints;
+  "solve" >:: test_solve;
 ]

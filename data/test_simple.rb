@@ -5,5 +5,5 @@ a = x
 a = y
 
 z = a.foo
-z
+z.bar
 y

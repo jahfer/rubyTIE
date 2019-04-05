@@ -37,13 +37,13 @@ module ExpressionPrinter = struct
     if (indent <> 1) then printf "\n";
     let { type_reference; _ } = metadata in
     (* printf "# %a\n" Location.print_loc expr_loc; *)
-    printf "%*s(%s : %a)" indent " "
-      (print_type_reference type_reference)
+    printf "%*s(%a : %s)" indent " "
       (print_type_referenced_expr ~indent:indent)
-      expr;
+      expr
+      (print_type_reference type_reference);
     if (indent = 1) then printf "\n"
 
-  let print_constraint k v =
+  let print_constraint _k v =
     let format_constraint s = Printf.sprintf "\027[31m%s\027[m" s in
     let prefix = format_constraint "CONSTRAINT:" in
     let open Constraint_engine in
@@ -60,12 +60,8 @@ module ExpressionPrinter = struct
         (print_type_reference return_t)
     | Constraints.Literal (a, t) ->
       printf "%s %-20s %s = %s\n" prefix "Literal" (print_type_reference a) (type_to_str t)
-    | Constraints.Equality (a, b) ->
-      printf "%s %-20s %s = %s\n" prefix "Equality" (print_type_reference a) (print_type_reference b)
     | Constraints.SubType (child, parent) ->
-      printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference parent) (print_type_reference child)
-    | _ ->
-      printf "%s %s => Unknown\n" prefix k
+      printf "%s %-20s %s < %s\n" prefix "SubType" (print_type_reference child) (print_type_reference parent)
 
   let print_constraint_map constraint_map =
     constraint_map |> Constraint_engine.Constraints.Map.iter (fun k vs ->
