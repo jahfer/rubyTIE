@@ -2,6 +2,17 @@
 
 Very much a work-in-progress. I have no idea what I'm doing.
 
+## Todo List
+- [ ] Constraint generation
+  - [x] Literals
+  - [x] Subtypes
+  - [ ] Disjuction (list of potential outcomes)
+  - [ ] Class
+- [x] Simplification
+  - [x] Unification of type variables
+- [x] Solver
+- [ ] Type interfaces for built-ins
+
 ## Examples
 
 ### Type Checking
@@ -103,7 +114,7 @@ maybe_sum(3, 5, false)
 ```
 
 ```bash
-$ dune exec bin/cli.exe data/test_basic.rb
+$ FILE=data/test_kitchen_sink.rb make run
 ```
 
 **Output**

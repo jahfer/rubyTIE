@@ -71,8 +71,7 @@ let simplify_type_constraints base_type_reference constraint_lst =
       None
     | Constraints.SubType (subtype, supertype) as st ->
       (* types are pointing to the same variable, unify and drop constraint *)
-      if Util.is_some supertype.metadata.binding &&
-        supertype.metadata.binding = subtype.metadata.binding
+      if Util.is_some supertype.metadata.binding && supertype.metadata.binding = subtype.metadata.binding
       then (unify_types supertype subtype; None)
       else Some(st)
     | _ -> Some(cst)
