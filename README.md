@@ -23,27 +23,27 @@ Very much a work-in-progress. I have no idea what I'm doing.
 
 **Output**
 
-```racket
- (lvasgn `x
+```clj
+(lvasgn `x
   (false : bool) : bool)
 
- (lvasgn `y
+(lvasgn `y
   (3 : int) : int)
 
- (lvasgn `a
+(lvasgn `a
   (lvar `x : int|bool) : int|bool)
 
- (lvasgn `a
+(lvasgn `a
   (lvar `y : int|bool) : int|bool)
 
- (lvasgn `z
+(lvasgn `z
   (send
    (lvar `a : int|bool) `foo : T11) : T11)
 
- (send
+(send
   (lvar `z : T11) `bar : T13)
 
- (lvar `y : int)
+(lvar `y : int)
 ```
 
 ### Kitchen Sink
