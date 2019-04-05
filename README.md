@@ -31,14 +31,14 @@ Very much a work-in-progress. I have no idea what I'm doing.
   (3 : int) : int)
 
 (lvasgn `a
-  (lvar `x : int|bool) : int|bool)
+  (lvar `x : bool) : int|bool)
 
 (lvasgn `a
-  (lvar `y : int|bool) : int|bool)
+  (lvar `y : int) : int|bool)
 
 (lvasgn `z
   (send
-   (lvar `a : int|bool) `foo : T11) : T11)
+    (lvar `a : int|bool) `foo : T11) : T11)
 
 (send
   (lvar `z : T11) `bar : T13)
@@ -151,11 +151,11 @@ $ dune exec bin/cli.exe data/test_basic.rb
   ([1 2 3] : array<T65>) : array<T65>)
 
 (send
-  (lvar `y : array<T65>) `first : T31)
+  (lvar `y : array<T65>) `first : T28)
 
 (lvasgn `z
   (send
-    (lvar `y : array<T65>) `first : T31) : T31)
+   (lvar `y : array<T65>) `first : T28) : T28)
 
 (lvasgn `func1
   (lambda ()
@@ -169,7 +169,7 @@ $ dune exec bin/cli.exe data/test_basic.rb
 (lvasgn `func3
   (lambda (args (arg `local) (arg `_x))
     (send
-      (lvar `local : T62) `first : T63) : lambda<? -> T40>) : lambda<? -> T40>)
+      (lvar `local : T39) `first : T40) : lambda<? -> T40>) : lambda<? -> T40>)
 
 (send
   (lvar `func3 : lambda<? -> T40>) `call
@@ -198,5 +198,5 @@ $ dune exec bin/cli.exe data/test_basic.rb
 
 (lambda (args (arg `local) (arg `_x))
   (send
-    (lvar `local : T62) `first : T63) : lambda<? -> T63>)
+    (lvar `local : T39) `first : T40) : lambda<? -> T63>)
 ```
