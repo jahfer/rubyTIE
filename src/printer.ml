@@ -1,4 +1,5 @@
 open Types
+open Types.BaseType
 
 let rec type_to_str = function
   | THash    -> "hash"

@@ -15,11 +15,37 @@ module BaseType = struct
     | TPoly of string
     | TLambda of t list * t
     | TUnion of t * t
+    (*
+    | TClass
+    | TMethod
+    *)
 
   let compare = compare
 end
 
-include BaseType
+module Interface = struct
+  module TypeSet = Set.Make (struct type t = BaseType.t let compare = compare end)
+
+  type object_sig = {
+    receiver : BaseType.t;
+    method_name : string;
+    arguments : TypeSet.t;
+  }
+
+  module MethodSet = Set.Make (struct
+    type t = object_sig
+    let compare = compare
+  end)
+
+  type t = {
+    methods : MethodSet.t;
+    parent : BaseType.t;
+    class_name : string;
+  }
+end
+
+open BaseType
+type t = BaseType.t
 
 (* Global generator of type variable references *)
 let current_var = ref 1

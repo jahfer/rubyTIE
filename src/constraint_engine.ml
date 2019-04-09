@@ -1,4 +1,5 @@
 open Types
+open Types.BaseType
 open Ast
 
 (* Exceptions *)
