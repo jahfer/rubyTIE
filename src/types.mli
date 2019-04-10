@@ -19,6 +19,8 @@ end
 
 type t = BaseType.t
 
+val gen_fresh_t : unit -> t
+
 module Interface : sig
   module TypeSet : Set.S with type elt = BaseType.t
 
@@ -57,10 +59,10 @@ type expr_metadata = {
   level : int;
 }
 
-type 'a expression_type = GeneralizedType of BaseType.t | SpecializedType of type_reference
+type 'a expression_type =
+  | GeneralizedType of BaseType.t
+  | SpecializedType of type_reference
 
 val typeof_expr : expr_metadata Ast.expr -> 'a expression_type
-
-val gen_fresh_t : unit -> t
 
 val typeof_value : Ast.value -> t

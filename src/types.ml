@@ -24,8 +24,10 @@ module BaseType = struct
 end
 
 module Interface = struct
-  module TypeSet = Set.Make (struct type t = BaseType.t let compare = compare end)
-
+  module TypeSet = Set.Make (struct
+    type t = BaseType.t
+    let compare = compare
+  end)
 
   module Method = struct
     type t = {
@@ -85,7 +87,9 @@ type expr_metadata = {
   level : int;
 }
 
-type 'a expression_type = GeneralizedType of t | SpecializedType of type_reference
+type 'a expression_type =
+  | GeneralizedType of t
+  | SpecializedType of type_reference
 
 let typeof_expr = let open Ast in function
     | ExprVar ((_, value))

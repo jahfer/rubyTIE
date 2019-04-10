@@ -33,24 +33,22 @@ let parse_buf_to_ast lexbuf =
     | Some (expr) ->
       build_untyped_ast lexbuf ((Typed_ast.annotate expr) :: acc)
     | None -> acc
-  in let untyped_ast : 'a Ast.expression list = build_untyped_ast lexbuf [] in
+  in
+
+  let untyped_ast : 'a Ast.expression list = build_untyped_ast lexbuf [] in
 
   (* Find constraints based on interaction within AST *)
   let open Constraint_engine in
   let _ = Constraints.Map.empty
   |> List.fold_right (fun x acc -> build_constraints x acc) untyped_ast
-  (* Simplify constraints *)
   |> simplify
-  (* Solve for types *)
   |> solve
-
   in
-
   untyped_ast
-    |> List.map (fun ast -> Typed_ast.resolve_types ast)
-    |> List.rev
-    |> List.iter (fun ast ->
-        Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)
+  |> List.map (fun ast -> Typed_ast.resolve_types ast)
+  |> List.rev
+  |> List.iter (fun ast ->
+      Printf.printf "%a\n" (Typed_ast.ExpressionPrinter.print_expression ~indent:1) ast)
 
 let parse_from_filename filename =
   let inx = Core.In_channel.create filename in
