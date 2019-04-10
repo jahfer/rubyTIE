@@ -26,16 +26,17 @@ end
 module Interface = struct
   module TypeSet = Set.Make (struct type t = BaseType.t let compare = compare end)
 
-  type object_sig = {
-    receiver : BaseType.t;
-    method_name : string;
-    arguments : TypeSet.t;
-  }
 
-  module MethodSet = Set.Make (struct
-    type t = object_sig
+  module Method = struct
+    type t = {
+      receiver : BaseType.t;
+      method_name : string;
+      arguments : TypeSet.t;
+    }
     let compare = compare
-  end)
+  end
+
+  module MethodSet = Set.Make (Method)
 
   type t = {
     methods : MethodSet.t;

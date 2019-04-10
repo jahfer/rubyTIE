@@ -22,13 +22,17 @@ type t = BaseType.t
 module Interface : sig
   module TypeSet : Set.S with type elt = BaseType.t
 
-  type object_sig = {
-    receiver : BaseType.t;
-    method_name : string;
-    arguments : TypeSet.t;
-  }
+  module Method : sig
+    type t = {
+      receiver : BaseType.t;
+      method_name : string;
+      arguments : TypeSet.t;
+    }
 
-  module MethodSet : Set.S with type elt = object_sig
+    val compare : t -> t -> int
+  end
+
+  module MethodSet : Set.S with type elt = Method.t
 
   type t = {
     methods : MethodSet.t;
