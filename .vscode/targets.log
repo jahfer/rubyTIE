@@ -1,0 +1,291 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+# GNU Make 3.81
+# Copyright (C) 2006  Free Software Foundation, Inc.
+# This is free software; see the source for copying conditions.
+# There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+# This program built for i386-apple-darwin11.3.0
+
+# Make data base, printed on Sun Jun 26 14:58:03 2022
+
+# Variables
+
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# environment
+RUBY_VERSION = 3.0.0
+# automatic
+?F = $(notdir $?)
+# environment
+OPAM_SWITCH_PREFIX = /Users/jahfer/.opam/5.0.0~alpha0
+# environment
+OCAML_TOPLEVEL_PATH = /Users/jahfer/.opam/5.0.0~alpha0/lib/toplevel
+# environment
+VSCODE_LOG_NATIVE = false
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# environment
+OCAML_LSP_SERVER_LOG = -
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# automatic
+@F = $(notdir $@)
+# makefile
+CURDIR := /Users/jahfer/src/github.com/jahfer/rubyTIE
+# makefile
+SHELL = /bin/sh
+# environment
+FZF_DEFAULT_COMMAND = rg --files
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en-us","availableLanguages":{},"_languagePackSupport":true}
+# environment
+_ = /usr/bin/make
+# makefile (from `Makefile', line 1)
+MAKEFILE_LIST :=  Makefile
+# environment
+NNN_PLUG = f:finder;o:fzopen;p:preview-tui
+# environment
+VSCODE_VERBOSE_LOGGING = true
+# environment
+__CFBundleIdentifier = com.microsoft.VSCode
+# environment
+VSCODE_IPC_HOOK_EXTHOST = /var/folders/dq/3mv80yg57jd9bzw_55g1pbnh0000gn/T/vscode-ipc-63e6a245-46da-4872-ba89-585df4762b24.sock
+# environment
+VSCODE_CWD = /
+# environment
+PATH = /Users/jahfer/.nix-profile/bin:/Users/jahfer/.opam/5.0.0~alpha0/bin:/Users/jahfer/.nimble/bin:/Users/jahfer/bin:/Users/jahfer/.gem/ruby/3.0.0/bin:/Users/jahfer/.rubies/ruby-3.0.0/lib/ruby/gems/3.0.0/bin:/Users/jahfer/.rubies/ruby-3.0.0/bin:/Users/jahfer/.cargo/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/Apple/usr/bin:/usr/local/opt/fzf/bin
+# environment
+LSCOLORS = Gxfxcxdxbxegedabagacad
+# environment
+RUBYOPT = 
+# environment
+VSCODE_LOG_STACK = false
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# default
+.FEATURES := target-specific order-only second-expansion else-if archives jobserver check-symlink
+# environment
+SSH_AUTH_SOCK = /private/tmp/com.apple.launchd.rjfBSAPBUp/Listeners
+# automatic
+%F = $(notdir $%)
+# environment
+NIX_SSL_CERT_FILE = /Users/jahfer/.nix-profile/etc/ssl/certs/ca-bundle.crt
+# environment
+VSCODE_PIPE_LOGGING = true
+# environment
+PWD = /Users/jahfer/src/github.com/jahfer/rubyTIE
+# environment
+GEM_HOME = /Users/jahfer/.gem/ruby/3.0.0
+# environment
+ORIGINAL_XDG_CURRENT_DESKTOP = undefined
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /Users/jahfer
+# default
+MAKEFILEPATH = $(shell /usr/bin/xcode-select -print-path 2>/dev/null || echo /Developer)/Makefiles
+# environment
+VSCODE_CODE_CACHE_PATH = /Users/jahfer/Library/Application Support/Code/CachedData/4af164ea3a06f701fe3e89a2bcbb421d2026b68f
+# environment
+LOGNAME = jahfer
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
+# environment
+ZSH = /Users/jahfer/.oh-my-zsh
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# environment
+GEM_PATH = /Users/jahfer/.gem/ruby/3.0.0:/Users/jahfer/.rubies/ruby-3.0.0/lib/ruby/gems/3.0.0
+# makefile (from `Makefile', line 1)
+FORMAT = exe
+# environment
+XPC_FLAGS = 0x0
+# default
+MAKE = $(MAKE_COMMAND)
+# default
+MAKECMDGOALS := all
+# environment
+SHLVL = 1
+# environment
+NNN_FIFO = /tmp/nnn.fifo
+# environment
+RUBY_ROOT = /Users/jahfer/.rubies/ruby-3.0.0
+# environment
+NIX_PATH = /Users/jahfer/.nix-defexpr/channels
+# environment
+NIX_PROFILES = /nix/var/nix/profiles/default /Users/jahfer/.nix-profile
+# default
+MAKE_VERSION := 3.81
+# environment
+USER = jahfer
+# environment
+CAML_LD_LIBRARY_PATH = /Users/jahfer/.opam/5.0.0~alpha0/lib/stublibs:/Users/jahfer/.opam/5.0.0~alpha0/lib/ocaml/stublibs:/Users/jahfer/.opam/5.0.0~alpha0/lib/ocaml
+# makefile
+.DEFAULT_GOAL := build
+# environment
+RUBY_ENGINE = ruby
+# environment
+LESS = -R
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# default
+MAKE_COMMAND := /Library/Developer/CommandLineTools/usr/bin/make
+# default
+.VARIABLES := 
+# environment
+TMPDIR = /var/folders/dq/3mv80yg57jd9bzw_55g1pbnh0000gn/T/
+# automatic
+*F = $(notdir $*)
+# environment
+VSCODE_IPC_HOOK = /Users/jahfer/Library/Application Support/Code/1.68.0-main.sock
+# makefile
+MAKEFLAGS = Rrqp
+# environment
+MFLAGS = -Rrqp
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+XPC_SERVICE_NAME = application.com.microsoft.VSCode.81717601.81717607
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# automatic
++F = $(notdir $+)
+# environment
+__CF_USER_TEXT_ENCODING = 0x1F5:0x0:0x52
+# environment
+COMMAND_MODE = unix2003
+# default
+MAKEFILES := 
+# automatic
+<F = $(notdir $<)
+# environment
+PAGER = less
+# environment
+LC_ALL = C
+# makefile (from `Makefile', line 2)
+FILE = data/test_kitchen_sink.rb
+# automatic
+^F = $(notdir $^)
+# default
+SUFFIXES := 
+# environment
+GEM_ROOT = /Users/jahfer/.rubies/ruby-3.0.0/lib/ruby/gems/3.0.0
+# default
+.INCLUDE_DIRS = /usr/local/include
+# environment
+MAKELEVEL := 0
+# environment
+LANG = C
+# environment
+VSCODE_PID = 63828
+# variable set hash-table stats:
+# Load=85/1024=8%, Rehash=0, Collisions=6/111=5%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 16777220, inode 41667784): 17 files, no impossibilities.
+
+# 17 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+# Not a target:
+all:
+#  Command-line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has not been updated.
+# variable set hash-table stats:
+# Load=0/32=0%, Rehash=0, Collisions=0/0=0%
+
+.PHONY: build clean run test
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+.SUFFIXES:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2021-04-07 23:35:02
+#  File has been updated.
+#  Successfully updated.
+# variable set hash-table stats:
+# Load=0/32=0%, Rehash=0, Collisions=0/0=0%
+
+test:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  commands to execute (from `Makefile', line 11):
+	dune runtest
+	
+
+build:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  commands to execute (from `Makefile', line 5):
+	dune build bin/cli.$(FORMAT)
+	
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+run:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  commands to execute (from `Makefile', line 8):
+	dune exec bin/cli.$(FORMAT) $(FILE)
+	
+
+clean:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  commands to execute (from `Makefile', line 14):
+	dune clean
+	
+
+# files hash-table stats:
+# Load=9/1024=1%, Rehash=0, Collisions=0/25=0%
+# VPATH Search Paths
+
+# No `vpath' search paths.
+
+# No general (`VPATH' variable) search path.
+
+# # of strings in strcache: 1
+# # of strcache buffers: 1
+# strcache size: total = 4096 / max = 4096 / min = 4096 / avg = 4096
+# strcache free: total = 4087 / max = 4087 / min = 4087 / avg = 4087
+
+# Finished Make data base on Sun Jun 26 14:58:03 2022
+
+ 
+make: *** No rule to make target `all'.  Stop.
+

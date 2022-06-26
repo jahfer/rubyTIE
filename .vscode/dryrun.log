@@ -1,0 +1,5 @@
+make build --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/jahfer/src/github.com/jahfer/rubyTIE'
+dune build bin/cli.exe
+make: Leaving directory `/Users/jahfer/src/github.com/jahfer/rubyTIE'
+ 

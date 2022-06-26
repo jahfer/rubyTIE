@@ -26,7 +26,7 @@ module Constraints = struct
     | Literal _, _ -> -1 | _, Literal _ -> 1
     (* SubType is second highest priority *)
     | SubType _, _ -> -1 | _, SubType _ -> 1
-    | a, b -> Pervasives.compare a b
+    | a, b -> Stdlib.compare a b
 
   module Map = Map.Make (String)
   type map_t = t list Map.t

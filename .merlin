@@ -1,3 +1,0 @@
-S src bin
-B _build/*
-PKG core ounit str lexer parser cmdliner lexing

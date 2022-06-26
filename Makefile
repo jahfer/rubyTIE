@@ -2,15 +2,15 @@ FORMAT ?= exe
 FILE ?= data/test_kitchen_sink.rb
 
 build:
-	esy refmterr dune build bin/cli.$(FORMAT)
+	dune build bin/cli.$(FORMAT)
 
 run:
-	esy refmterr dune exec bin/cli.$(FORMAT) $(FILE)
+	dune exec bin/cli.$(FORMAT) $(FILE)
 
 test:
-	esy refmterr dune runtest
+	dune runtest
 
 clean:
-	esy dune clean
+	dune clean
 
 .PHONY: build clean run test
